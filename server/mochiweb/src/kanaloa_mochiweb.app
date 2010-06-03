@@ -1,6 +1,6 @@
 {application, kanaloa_mochiweb,
  [{description, "kanaloa_mochiweb"},
-  {vsn, "0.01"},
+  {vsn, "0.04"},
   {modules, [
     kanaloa_mochiweb,
     kanaloa_mochiweb_app,

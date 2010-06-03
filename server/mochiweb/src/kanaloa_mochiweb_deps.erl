@@ -1,5 +1,5 @@
-%% @author author <author@example.com>
-%% @copyright YYYY author.
+%% @author Stephen Schwink <kanaloa@schwink.net>
+%% @copyright 2010 Stephen Schwink.
 
 %% @doc Ensure that the relatively-installed dependencies are on the code
 %%      loading path, and locate resources relative
