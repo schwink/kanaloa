@@ -2,10 +2,12 @@ all: ebin/
 	(cd src;$(MAKE) all)
 	(cd test;$(MAKE) DEBUG=-DDEBUG)
 
-edoc:
+force:
+
+edoc: force
 	(cd src;$(MAKE) edoc)
 
-test:
+test: force
 	(cd src;$(MAKE) test)
 
 clean:
