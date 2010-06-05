@@ -4,20 +4,20 @@
 %% @doc Supervisor for the kanaloa_mochiweb application.
 
 -module(kanaloa_mochiweb_sup).
--author('author <author@example.com>').
+-author('Stephen Schwink <kanaloa@schwink.net>').
 
 -behaviour(supervisor).
 
 %% External exports
--export([start_link/0, upgrade/0]).
+-export([start_link/2, upgrade/0]).
 
 %% supervisor callbacks
 -export([init/1]).
 
 %% @spec start_link() -> ServerRet
 %% @doc API for starting the supervisor.
-start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+start_link(MochiConfig, KanaConfig) ->
+    supervisor:start_link({local, ?MODULE}, ?MODULE, {MochiConfig, KanaConfig}).
 
 %% @spec upgrade() -> ok
 %% @doc Add processes if necessary.
@@ -40,18 +40,14 @@ upgrade() ->
 
 %% @spec init([]) -> SupervisorTree
 %% @doc supervisor callback.
-init([]) ->
-    WebConfig = [
-		 {ip, "0.0.0.0"},
-                 {port, 8000} % Default port
-		],
-    KanaConfig = [],
+init({MochiConfig, KanaConfig}) ->
+    io:format("kanaloa_mochiweb_sup:init/2\n"),
     Web = {kanaloa_mochiweb_web,
-           {kanaloa_mochiweb_web, start, [WebConfig, KanaConfig]},
+           {kanaloa_mochiweb_web, start_link, [MochiConfig, KanaConfig]},
            permanent, 5000, worker, dynamic},
-
+    
     Processes = [Web],
-    {ok, {{one_for_one, 10, 10}, Processes}}.
+    {ok, {{one_for_one, 100, 100}, Processes}}.
 
 
 %%

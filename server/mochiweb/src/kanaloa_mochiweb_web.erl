@@ -6,17 +6,18 @@
 -module(kanaloa_mochiweb_web).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
--export([start/2, stop/0, loop/4]).
+-export([start_link/2, stop/0, loop/4]).
 
 %% External API
 
-start(MochiOptions, KanaOptions) ->
+start_link(MochiOptions, KanaOptions) ->
     MochiOptions2 = get_mochiweb_options(MochiOptions),
     {ok, HttpContentType, Parser, Handler} = parse_kanaloa_options(KanaOptions),
     
     Loop = fun (Req) ->
                    ?MODULE:loop(Req, Parser, Handler, HttpContentType)
            end,
+    io:format("kanaloa_mochiweb_web:start(~w, ~w)\n", [MochiOptions2, KanaOptions]),
     mochiweb_http:start([{loop, Loop} | MochiOptions2]).
 
 stop() ->
@@ -69,11 +70,12 @@ get_mochiweb_options(Options) ->
     Options1 = proplists:delete(docroot, Options), % Must unset the docroot property.
     Options2 = proplists:delete(loop, Options1), % Ignore the loop property.
     
-    Max = proplists:get_value(max, Options, 1048576), % Set a high default for max number of connections.
-    Options3 = replace_option(max, Options2, Max),
+    Options3 = set_default_option(max, Options2, 1048576), % Set a high default for max number of connections.
+    Options4 = set_default_option(ip, Options3, "0.0.0.0"),
+    Options5 = set_default_option(port, Options4, 8000),
     
-    Options4 = replace_option(name, Options3, ?MODULE),
-    Options4.
+    Options6 = replace_option(name, Options5, ?MODULE),
+    Options6.
 
 %% @spec get_path(Request::mochiweb_request()) -> string()
 %% @doc Gets the path that the request was made to.
@@ -145,6 +147,8 @@ parse_kanaloa_options(Options) ->
     ParseFun = case proplists:get_value(parse, Options, undefined) of
 		   undefined ->
 		       fun (Value) ->
+			       % BodyJson = mochijson2:decode(Value),
+			       % true = is_list(BodyJson),
 			       {ok, Value}
 		       end;
 		   P when is_function(P) ->
@@ -156,7 +160,7 @@ parse_kanaloa_options(Options) ->
 			 fun (_Connection) ->
 				 io:format("New connection!\n"),
 				 receive
-				     {chunk, Data} ->
+				     {chunk, _Data} ->
 					 io:format("Received a first chunk!\n")
 				 end
 			 end;
@@ -173,7 +177,6 @@ parse_query_string([{"t", "stream"}], none) ->
     stream.
 
 %% @doc Parses the request. Throws if something invalid is encountered.
-% TODO: Add an option for how much of the body to receive.
 parse_request(Req) ->
     case Req:get(method) of
 	'POST' ->
@@ -185,11 +188,10 @@ parse_request(Req) ->
 	    
 	    ConnectionId = get_connection_id(Req),
 	    
+	    % TODO: Add an option for how much of the body to receive.
 	    Body = Req:recv_body(), % Receives up to 1MB.
-	    BodyJson = mochijson2:decode(Body),
-	    true = is_list(BodyJson),
 	    
-	    {ok, CometMethod, ConnectionId, BodyJson};
+	    {ok, CometMethod, ConnectionId, Body};
 	'OPTIONS' ->
 	    {ok, options}
     end.
@@ -197,6 +199,15 @@ parse_request(Req) ->
 %% @doc Replaces the specified entry in a proplist.
 replace_option(Key, Options, Value) ->
     [{Key, Value} | proplists:delete(Key, Options)].
+
+%% @doc If the specified option is not present in the proplist, set it to the specified value.
+set_default_option(Key, Options, Default) ->
+    case proplists:get_value(Key, Options, undefined) of
+	undefined ->
+	    replace_option(Key, Options, Default);
+	_ ->
+	    Options
+    end.
 
 %%
 %% Tests

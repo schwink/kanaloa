@@ -9,22 +9,25 @@
 
 ensure_started(App) ->
     case application:start(App) of
-        ok ->
-            ok;
+	ok ->
+	    ok;
         {error, {already_started, App}} ->
-            ok
+	    ok
     end.
 
 %% @spec start() -> ok
 %% @doc Start the kanaloa_mochiweb server.
 start() ->
-    kanaloa_mochiweb_deps:ensure(),
     ensure_started(crypto),
-    application:start(kanaloa_mochiweb).
+    Result = kanaloa_mochiweb_sup:start_link([], []),
+    io:format("start result: ~w\n", [Result]),
+
+    receive
+	exit -> % Apparently this function, passed to erl with "-s", isn't supposed to return.
+	    ok
+    end.
 
 %% @spec stop() -> ok
 %% @doc Stop the kanaloa_mochiweb server.
 stop() ->
-    Res = application:stop(kanaloa_mochiweb),
-    application:stop(crypto),
-    Res.
+    ok.
