@@ -1,9 +1,9 @@
 %% @author Stephen Schwink <kanaloa@schwink.net>
 %% @copyright 2010 Stephen Schwink.
 
-%% @doc Web server for kanaloa_mochiweb.
+%% @doc Web server for kanaloa.
 
--module(kanaloa_mochiweb_web).
+-module(kanaloa_web).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
 -export([start_link/2, stop/0, loop/4]).
@@ -17,7 +17,7 @@ start_link(MochiOptions, KanaOptions) ->
     Loop = fun (Req) ->
                    ?MODULE:loop(Req, Parser, Handler, HttpContentType)
            end,
-    io:format("kanaloa_mochiweb_web:start(~w, ~w)\n", [MochiOptions2, KanaOptions]),
+    io:format("kanaloa_web:start(~w, ~w)\n", [MochiOptions2, KanaOptions]),
     mochiweb_http:start([{loop, Loop} | MochiOptions2]).
 
 stop() ->

@@ -14,8 +14,8 @@
 
 -record(batch, {messages=[], owner=none, interval=?BATCH_INTERVAL, check_interval=?BATCH_CHECK_INTERVAL, count=?BATCH_COUNT, timeout=none}).
 
-%% @spec new_batch() -> void()
-%% @spec Opens the connection. Control does not return from this call.
+%% @spec open(Owner::pid()) -> void()
+%% @doc Opens the connection. Control does not return from this call.
 open(Owner) when is_pid(Owner) ->
     process_flag(trap_exit, true),
     link(Owner),
@@ -37,14 +37,14 @@ open(Owner) when is_pid(Owner) ->
     {ok, NewBatch} = new_batch_state(Batch),
     loop(NewBatch).
 
-%% @spec send(Batch::batch(), Data::iolist()) -> ok
-%% @doc Adds a new message to the batch.
+%% @spec send(Data::iolist()) -> ok
+%% @doc Sends a message to the client.
 send(Message) ->
     io:format("Someone called send\n", []),
     Self ! {send, Message},
     ok.
 
-%% @spec close(Batch::batch()) -> ok
+%% @spec close() -> ok
 %% @doc Closes the connection. The process will exit; no further data can be sent.
 close() ->
     io:format("Someone called close\n", []),
@@ -104,7 +104,7 @@ loop(Batch) ->
 	    loop(NewBatch)
     end.
 
-%% @spec refresh_batch(OldBatch::batch(), TimeoutCheck::integer()) -> {ok, batch()} | done
+%% @spec new_batch_state(OldBatch::batch()) -> {ok, batch()} | done
 %% @doc Updates the batch with a new count and timeout.
 new_batch_state(OldBatch) ->
     Count = OldBatch#batch.count - 1,

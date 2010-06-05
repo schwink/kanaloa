@@ -1,6 +1,6 @@
 include ../support/include.mk
 
-APPLICATION=kanaloa_mochiweb
+APPLICATION=kanaloa
 DOC_OPTS={dir,\"../doc\"}
 TEST_PLT=$(TEST_DIR)/dialyzer_plt
 

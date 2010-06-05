@@ -1,9 +1,9 @@
 %% @author Stephen Schwink <kanaloa@schwink.net>
 %% @copyright 2010 Stephen Schwink.
 
-%% @doc Supervisor for the kanaloa_mochiweb application.
+%% @doc Supervisor for the kanaloa gen_servers.
 
--module(kanaloa_mochiweb_sup).
+-module(kanaloa_sup).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
 -behaviour(supervisor).
@@ -14,7 +14,7 @@
 %% supervisor callbacks
 -export([init/1]).
 
-%% @spec start_link() -> ServerRet
+%% @spec start_link(MochiConfig, KanaConfig) -> ServerRet
 %% @doc API for starting the supervisor.
 start_link(MochiConfig, KanaConfig) ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, {MochiConfig, KanaConfig}).
@@ -41,9 +41,9 @@ upgrade() ->
 %% @spec init([]) -> SupervisorTree
 %% @doc supervisor callback.
 init({MochiConfig, KanaConfig}) ->
-    io:format("kanaloa_mochiweb_sup:init/2\n"),
-    Web = {kanaloa_mochiweb_web,
-           {kanaloa_mochiweb_web, start_link, [MochiConfig, KanaConfig]},
+    io:format("kanaloa_sup:init/2\n"),
+    Web = {kanaloa_web,
+           {kanaloa_web, start_link, [MochiConfig, KanaConfig]},
            permanent, 5000, worker, dynamic},
     
     Processes = [Web],

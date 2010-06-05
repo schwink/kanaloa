@@ -15,6 +15,7 @@ clean:
 	#(cd test;$(MAKE) clean)
 	rm -rf ebin
 	rm -rf doc
+	rm -rf _test
 
 clean_plt:
 	(cd src;$(MAKE) clean_plt)

@@ -3,7 +3,7 @@
 
 %% @doc TEMPLATE.
 
--module(kanaloa_mochiweb).
+-module(kanaloa).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 -export([start/0, stop/0]).
 
@@ -16,10 +16,10 @@ ensure_started(App) ->
     end.
 
 %% @spec start() -> ok
-%% @doc Start the kanaloa_mochiweb server.
+%% @doc Start the kanaloa mochiweb server.
 start() ->
     ensure_started(crypto),
-    Result = kanaloa_mochiweb_sup:start_link([], []),
+    Result = kanaloa_sup:start_link([], []),
     io:format("start result: ~w\n", [Result]),
 
     receive
@@ -28,6 +28,6 @@ start() ->
     end.
 
 %% @spec stop() -> ok
-%% @doc Stop the kanaloa_mochiweb server.
+%% @doc Stop the kanaloa mochiweb server.
 stop() ->
     ok.
