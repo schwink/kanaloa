@@ -41,13 +41,13 @@ upgrade() ->
 %% @spec init([]) -> SupervisorTree
 %% @doc supervisor callback.
 init([]) ->
-    Ip = case os:getenv("MOCHIWEB_IP") of false -> "0.0.0.0"; Any -> Any end,
     WebConfig = [
-         {ip, Ip},
-                 {port, 8000},
-                 {docroot, kanaloa_mochiweb_deps:local_path(["priv", "www"])}],
+		 {ip, "0.0.0.0"},
+                 {port, 8000} % Default port
+		],
+    KanaConfig = [],
     Web = {kanaloa_mochiweb_web,
-           {kanaloa_mochiweb_web, start, [WebConfig]},
+           {kanaloa_mochiweb_web, start, [WebConfig, KanaConfig]},
            permanent, 5000, worker, dynamic},
 
     Processes = [Web],

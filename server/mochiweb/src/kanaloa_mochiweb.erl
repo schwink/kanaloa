@@ -4,7 +4,7 @@
 %% @doc TEMPLATE.
 
 -module(kanaloa_mochiweb).
--author('author <author@example.com>').
+-author('Stephen Schwink <kanaloa@schwink.net>').
 -export([start/0, stop/0]).
 
 ensure_started(App) ->

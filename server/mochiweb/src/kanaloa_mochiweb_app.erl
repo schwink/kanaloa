@@ -4,7 +4,7 @@
 %% @doc Callbacks for the kanaloa_mochiweb application.
 
 -module(kanaloa_mochiweb_app).
--author('author <author@example.com>').
+-author('Stephen Schwink <kanaloa@schwink.net>').
 
 -behaviour(application).
 -export([start/2, stop/1]).
