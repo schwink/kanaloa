@@ -35,11 +35,11 @@ register(Process) when is_pid(Process) ->
     {ok, Id}.
 
 %% @spec find(Id::binary()) -> {ok, Process::pid()} | no_id
-%% Retreives a process identifier from the index.
+%% @doc Retreives a process identifier from the index.
 find(Id) when is_binary(Id) ->
     gen_server:call(?GUID_SERVER, {find, Id}).
 
-%% @spec start_link(Name::atom(), Application::binary()) -> ok
+%% @spec start_link() -> ok
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
@@ -55,7 +55,7 @@ init([]) ->
     
     {ok, State}.
 
-%% @spec stop(Responder::server_ref()) -> ok
+%% @spec stop() -> ok
 stop() ->
     gen_server:cast(?GUID_SERVER, stop).
 
