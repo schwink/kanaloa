@@ -1,0 +1,25 @@
+<html>
+  <head>
+    <script language="JavaScript" src="index.js"></script>
+    <script language="JavaScript" src="client.js"></script>
+  </head>
+  <body>
+    <div>
+      Server:<br/>
+      <input type="text" id="server" value="http://192.168.56.3:8000/?t=stream" size="50" />
+      <br/>
+      POST body:<br/>
+      <textarea type="text" id="body" cols="80" rows="10">
+[
+  { "method": "subscribe", "params": ["instance0"], "id": 1},
+  { "method": "subscribeSince", "params": ["instance1", 45], "id": 2}
+]
+</textarea>
+      <br/>
+      <input type="button" value="Post" onclick="submit();" />
+      <br/>
+      <div id="requestMessages">
+      </div>
+    </div>
+  </body>
+</html>
