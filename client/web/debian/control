@@ -1,0 +1,13 @@
+Source: kanaloa-client-web
+Section: unknown
+Priority: extra
+Maintainer: Steve <steve@schwink.net>
+Build-Depends: debhelper (>= 7), devscripts
+Standards-Version: 3.8.1
+Homepage:
+
+Package: kanaloa-client-web
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Suggests: 
+Description: The javascript libraries used to interact with kanaloa from a web client.
