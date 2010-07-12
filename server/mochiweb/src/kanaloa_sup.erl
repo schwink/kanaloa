@@ -42,12 +42,15 @@ upgrade() ->
 %% @doc supervisor callback.
 init({MochiConfig, KanaConfig}) ->
     io:format("kanaloa_sup:init/2\n"),
+    Guid = {kanaloa_guid_server,
+	    {kanaloa_guid_server, start_link, []},
+	    permanent, 5000, worker, dynamic},
     Web = {kanaloa_web,
            {kanaloa_web, start_link, [MochiConfig, KanaConfig]},
            permanent, 5000, worker, dynamic},
     
-    Processes = [Web],
-    {ok, {{one_for_one, 100, 100}, Processes}}.
+    Processes = [Guid, Web],
+    {ok, {{one_for_all, 100, 100}, Processes}}.
 
 
 %%

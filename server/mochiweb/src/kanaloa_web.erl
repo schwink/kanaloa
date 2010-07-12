@@ -100,7 +100,9 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 	    dispatch_chunk(ExistingOwner, Data),
 	    Req:ok({ContentType, [], []});
 	new ->
-	    Headers = [{"ConnectionId", ConnectionId}],
+	    NewConnectionId = kanaloa_guid_server:new_guid(),
+	    
+	    Headers = [{"ConnectionId", NewConnectionId}],
 	    Resp = Req:ok({ContentType, Headers, chunked}),
 	    Resp:write_chunk(<<"Opened the connection!!!">>),
 	    Connection = kanaloa_connection:new(Resp, self(), CometMethod),
@@ -109,6 +111,7 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 				     io:format("Owner process spawned\n", []),
 				     Handler(Connection)
 			     end),
+	    ok = kanaloa_guid_server:register(NewOwner, NewConnectionId),
 	    
 	    dispatch_chunk(NewOwner, Data),
 	    

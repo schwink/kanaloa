@@ -12,7 +12,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -export([new_guid/0]).
--export([register/1, find/1]).
+-export([register/2, find/1]).
 
 -define(GUID_SERVER, whereis(?MODULE)).
 
@@ -26,13 +26,10 @@ new_guid() ->
     Uuid = string:strip(Out, right, $\n),
     list_to_binary(Uuid).
 
-%% @spec register(Process::pid()) -> result()
-%% where result() = {ok, Id::binary()}
+%% @spec register(Process::pid(), Id::binary()) -> ok | duplicate_process | duplicate_id
 %% @doc Adds a process identifier to the index.
-register(Process) when is_pid(Process) ->
-    Id = new_guid(),
-    ok = gen_server:call(?GUID_SERVER, {register, Id, Process}),
-    {ok, Id}.
+register(Process, Id) when is_pid(Process) andalso is_binary(Id) ->
+    gen_server:call(?GUID_SERVER, {register, Id, Process}).
 
 %% @spec find(Id::binary()) -> {ok, Process::pid()} | no_id
 %% @doc Retreives a process identifier from the index.
