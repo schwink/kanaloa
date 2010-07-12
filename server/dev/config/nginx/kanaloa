@@ -1,0 +1,28 @@
+
+upstream kanaloa {
+	 server 127.0.0.1:8000;
+}
+
+server {
+	listen 80;
+	server_name _;
+
+	access_log /var/log/nginx/kanaloa_access.log;
+
+	location /kanaloa/ {
+		proxy_read_timeout 500;
+		proxy_buffering off;
+		proxy_pass http://kanaloa/;
+	}
+
+	location /kanaloa/client/ {
+		alias /usr/share/javascript/kanaloa/;
+		autoindex on;
+	}
+
+	location /doc/kanaloa-web/ {
+		alias /home/dev/code/kanaloa/server/mochiweb/doc/;
+		index index.html index.htm;
+		autoindex on;
+	}
+}

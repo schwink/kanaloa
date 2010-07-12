@@ -1,0 +1,11 @@
+kanaloa-dev (0.01-1-20100711205622) karmic; urgency=low
+
+  * Local build
+
+ -- dev <dev@dev64>  Sun, 11 Jul 2010 20:56:22 -0700
+
+kanaloa-dev (0.01-1) unstable; urgency=low
+
+  * Initial release
+
+ -- Steve <steve@schwink.net>  Sat, 27 Mar 2010 02:24:03 -0700

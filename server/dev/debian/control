@@ -1,0 +1,13 @@
+Source: kanaloa-dev
+Section: unknown
+Priority: extra
+Maintainer: Steve <steve@schwink.net>
+Build-Depends: debhelper, devscripts
+Standards-Version: 3.8.1
+Homepage:
+
+Package: kanaloa-dev
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, build-essential, debhelper, devscripts, emacs22-nox, erlang-dev, erlang-mode, erlang-nox, erlang-manpages, erlang-tools, fakeroot, nginx, python-setuptools, kanaloa
+Suggests: 
+Description: Metapackage for setting up a kanaloa development machine.
