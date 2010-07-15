@@ -36,13 +36,17 @@ function submit() {
     var server = document.getElementById("server").value;
     var body = document.getElementById("body").value;
     
-    var request = post(server, body, function(message) { request.logger(message); });
-    requests.push(request);
-    request.statusMessages = [];
-    request.logger = function(message) {
+    var connection = new KanaloaConnection(server);
+
+    requests.push(connection);
+    
+    connection.statusMessages = [];
+    connection.OnDebugEvent = function(message) {
 	this.statusMessages.push(message);
 	updateRequestMessages();	
     }
-    
+
+    connection.Send(body);
+
     return false;
 }

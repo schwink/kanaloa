@@ -12,8 +12,7 @@ force:
 
 install:
 	mkdir -p $(DEST_SHARE) || true
-	cp -r src/*.js $(DEST_SHARE)
-	cp -r src/*.html $(DEST_SHARE)
+	cp -r src/* $(DEST_SHARE)
 
 package: force
 #	Increment the version number
