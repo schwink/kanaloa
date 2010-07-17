@@ -42,7 +42,7 @@ function submit() {
     
     connection.statusMessages = [];
     connection.OnReceive = function(data) {
-	this.statusMessages.push("Receive: " + data);
+	this.statusMessages.push("Receive: \"" + data + "\"");
 	updateRequestMessages();	
     }
     connection.OnDebugEvent = function(message) {

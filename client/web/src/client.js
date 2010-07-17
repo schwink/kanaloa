@@ -34,6 +34,7 @@ KanaloaConnection.prototype.Send = function(data) {
     var connection = this;
     var post = new KanaloaHttpPost(this._server,
 				   function(data) { connection._ReportReceive(data); },
+				   function(httpStatusCode) { connection._LogDebug("Closed with status: " + httpStatusCode); },
 				   function(message) { connection._LogDebug(message); }
 				   );
     post.Send(data);
@@ -42,18 +43,26 @@ KanaloaConnection.prototype.Send = function(data) {
 /// Wraps XmlHttpRequest to provide lowest-level send and receive functionality.
 /// server -- The full URL to post to.
 /// onReceiveChunk -- On stream-capable browsers, this is fired once per chunk. Otherwise, once per request.
+/// onClose -- Fired when the underlying request dies.
 /// onDebugEvent -- Reports interesting diagnostic information.
-function KanaloaHttpPost(server, onReceiveChunk, onDebugEvent) {
+function KanaloaHttpPost(server, onReceiveChunk, onClose, onDebugEvent) {
     this._server = server;
     this._request = null;
 
     this._onReceiveChunk = onReceiveChunk;
+    this._onClose = onClose;
     this._onDebugEvent = onDebugEvent;
 }
 
 KanaloaHttpPost.prototype._ReportChunk = function(data) {
     if (this._onReceiveChunk) {
 	this._onReceiveChunk(data);
+    }
+}
+
+KanaloaHttpPost.prototype._ReportClose = function(httpStatusCode) {
+    if (this._onClose) {
+	this._onClose(httpStatusCode);
     }
 }
 
@@ -88,6 +97,8 @@ KanaloaHttpPost.prototype.Connect = function() {
 	var readyState = request.readyState;
 	connection._LogDebug("State changed to " + readyStates[request.readyState]);
 	
+	connection._LogDebug("status is \"" + request.status + "\"");
+	
 	connection._LogDebug("responseText is \"" + request.responseText + "\"");
 	
 	var headers = request.getAllResponseHeaders();
@@ -100,6 +111,10 @@ KanaloaHttpPost.prototype.Connect = function() {
 	    if (data.length > 0) {
 		connection._ReportChunk(data);
 	    }
+	}
+	
+	if (readyState == READYSTATE_DONE) {
+	    connection._ReportClose(request.status);
 	}
     }
     
