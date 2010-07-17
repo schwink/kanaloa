@@ -33,6 +33,7 @@ KanaloaConnection.prototype._LogDebug = function(message) {
 KanaloaConnection.prototype.Send = function(data) {
     var connection = this;
     var post = new KanaloaHttpPost(this._server,
+				   "application/json",
 				   function(data) { connection._ReportReceive(data); },
 				   function(httpStatusCode) { connection._LogDebug("Closed with status: " + httpStatusCode); },
 				   function(message) { connection._LogDebug(message); }
@@ -45,8 +46,9 @@ KanaloaConnection.prototype.Send = function(data) {
 /// onReceiveChunk -- On stream-capable browsers, this is fired once per chunk. Otherwise, once per request.
 /// onClose -- Fired when the underlying request dies.
 /// onDebugEvent -- Reports interesting diagnostic information.
-function KanaloaHttpPost(server, onReceiveChunk, onClose, onDebugEvent) {
+function KanaloaHttpPost(server, httpContentType, onReceiveChunk, onClose, onDebugEvent) {
     this._server = server;
+    this._contentType = httpContentType;
     this._request = null;
 
     this._onReceiveChunk = onReceiveChunk;
@@ -97,12 +99,14 @@ KanaloaHttpPost.prototype.Connect = function() {
 	var readyState = request.readyState;
 	connection._LogDebug("State changed to " + readyStates[request.readyState]);
 	
-	connection._LogDebug("status is \"" + request.status + "\"");
+	//connection._LogDebug("responseText is \"" + request.responseText + "\"");
 	
-	connection._LogDebug("responseText is \"" + request.responseText + "\"");
-	
-	var headers = request.getAllResponseHeaders();
-	connection._LogDebug("AllResponseHeaders is \"" + headers + "\"");
+	if (readyState == READYSTATE_HEADERSRECEIVED) {
+	    var headers = request.getAllResponseHeaders();
+	    connection._LogDebug("AllResponseHeaders is \"" + headers + "\"");
+	    
+	    connection._LogDebug("status is \"" + request.status + "\"");
+	}
 	
 	if (readyState == READYSTATE_LOADING || readyState == READYSTATE_DONE) {
 	    var allData = request.responseText;
@@ -119,7 +123,9 @@ KanaloaHttpPost.prototype.Connect = function() {
     }
     
     // Setting headers seems to cause an OPTIONS request to be sent first.
-    //request.setRequestHeader("Content-Type", "application/json");
+    if (this._contentType) {
+	request.setRequestHeader("Content-Type", this._contentType);
+    }
     
     return true;
 }
