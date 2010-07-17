@@ -33,6 +33,7 @@ KanaloaConnection.prototype._LogDebug = function(message) {
 KanaloaConnection.prototype.Send = function(data) {
     var connection = this;
     var post = new KanaloaHttpPost(this._server,
+				   null,
 				   "application/json",
 				   function(data) { connection._ReportReceive(data); },
 				   function(httpStatusCode) { connection._LogDebug("Closed with status: " + httpStatusCode); },
@@ -46,8 +47,9 @@ KanaloaConnection.prototype.Send = function(data) {
 /// onReceiveChunk -- On stream-capable browsers, this is fired once per chunk. Otherwise, once per request.
 /// onClose -- Fired when the underlying request dies.
 /// onDebugEvent -- Reports interesting diagnostic information.
-function KanaloaHttpPost(server, httpContentType, onReceiveChunk, onClose, onDebugEvent) {
+function KanaloaHttpPost(server, connectionId, httpContentType, onReceiveChunk, onClose, onDebugEvent) {
     this._server = server;
+    this.ConnectionId = connectionId;
     this._contentType = httpContentType;
     this._request = null;
 
@@ -105,6 +107,12 @@ KanaloaHttpPost.prototype.Connect = function() {
 	    var headers = request.getAllResponseHeaders();
 	    connection._LogDebug("AllResponseHeaders is \"" + headers + "\"");
 	    
+	    var newConnectionId = request.getResponseHeader("ConnectionId");
+	    if (newConnectionId) {
+		connection._LogDebug("Set new ConnectionId \"" + newConnectionId + "\"");
+		connection.ConnectionId = newConnectionId;
+	    }
+	    
 	    connection._LogDebug("status is \"" + request.status + "\"");
 	}
 	
@@ -122,7 +130,9 @@ KanaloaHttpPost.prototype.Connect = function() {
 	}
     }
     
-    // Setting headers seems to cause an OPTIONS request to be sent first.
+    if (this.ConnectionId) {
+	request.setRequestHeader("ConnectionId", this.ConnectionId);
+    }
     if (this._contentType) {
 	request.setRequestHeader("Content-Type", this._contentType);
     }
