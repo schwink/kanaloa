@@ -18,9 +18,11 @@ ensure_started(App) ->
 handle_connection(Connection) ->
     receive
 	{chunk, Data} ->
-	    io:format("Received a chunk!\n"),
-	    Reply = <<"Got your message!:">>,
-	    Connection:send(<<Reply/binary, Data/binary>>),
+	    io:format("Received a chunk! '~w'\n", [Data]),
+	    Reply = <<"Got your message, which is re-encoded as:">>,
+	    BodyText = mochijson2:encode(Data),
+	    BodyBinary = iolist_to_binary(BodyText),
+	    Connection:send(<<Reply/binary, BodyBinary/binary>>),
 	    handle_connection(Connection)
     end.
 

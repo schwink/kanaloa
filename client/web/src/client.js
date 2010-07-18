@@ -66,7 +66,7 @@ KanaloaConnection.prototype.Connect = function() {
 				       this.Settings.ContentType,
 				       function() { ConnectionOpened(this); },
 				       function(data) { connection._ReportReceive(data); },
-				       function(httpStatusCode) {  },
+				       function(httpStatusCode) { ConnectionClosed(this, httpStatusCode); },
 				       function(message) { connection._LogDebug(message); }
 				       );
     this._receiver = receiver;

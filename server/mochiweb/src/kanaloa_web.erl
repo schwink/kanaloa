@@ -6,16 +6,16 @@
 -module(kanaloa_web).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
--export([start_link/2, stop/0, loop/4]).
+-export([start_link/2, stop/0, loop/3]).
 
 %% External API
 
 start_link(MochiOptions, KanaOptions) ->
     MochiOptions2 = get_mochiweb_options(MochiOptions),
-    {ok, HttpContentType, Parser, Handler} = parse_kanaloa_options(KanaOptions),
+    {ok, HttpContentType, Handler} = parse_kanaloa_options(KanaOptions),
     
     Loop = fun (Req) ->
-                   ?MODULE:loop(Req, Parser, Handler, HttpContentType)
+                   ?MODULE:loop(Req, Handler, HttpContentType)
            end,
     io:format("kanaloa_web:start(~w, ~w)\n", [MochiOptions2, KanaOptions]),
     mochiweb_http:start([{loop, Loop} | MochiOptions2]).
@@ -23,16 +23,16 @@ start_link(MochiOptions, KanaOptions) ->
 stop() ->
     mochiweb_http:stop(?MODULE).
 
-loop(Req, Parser, Handler, ContentType) ->
+loop(Req, Handler, ContentType) ->
     io:format("Got a request!\n", []),
     
     case catch parse_request(Req) of
 	{ok, options} ->
 	    handle_options_request(Req);
 	{ok, CometMethod, ConnectionId, Body} ->
-	    case catch Parser(Body) of
-		{ok, Data} ->
-		    handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, Data);
+	    case catch parse_body(Body) of
+		{ok, DataSegments} ->
+		    handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, DataSegments);
 		Error ->
 		    io:format("Body parse error: ~w\n", [Error]),
 		    Req:respond({400, [], []}) % Bad request
@@ -44,9 +44,12 @@ loop(Req, Parser, Handler, ContentType) ->
 
 %% Internal API
 
-dispatch_chunk(Owner, Data) ->
+dispatch_chunks(_, []) ->
+    ok;
+dispatch_chunks(Owner, [Data| Rest]) ->
     io:format("dispatch_chunk: sending data '~s' to owner ~w\n", [Data, Owner]),
-    Owner ! {chunk, Data}.
+    Owner ! {chunk, Data},
+    dispatch_chunks(Owner, Rest).
 
 %% @spec get_comet_method(Request::mochiweb_request()) -> 'longpoll' | 'stream'
 get_comet_method(Req) ->
@@ -110,7 +113,7 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 	    exit(bad_connection_owner);
 	{ok, ExistingOwner} ->
 	    io:format("Sending message to existing owner ~w\n", [ExistingOwner]),
-	    dispatch_chunk(ExistingOwner, Data),
+	    dispatch_chunks(ExistingOwner, Data),
 	    Req:ok({ContentType, [], []});
 	new ->
 	    NewConnectionId = kanaloa_guid_server:new_guid(),
@@ -125,7 +128,7 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 			     end),
 	    ok = kanaloa_guid_server:register_new(NewOwner, NewConnectionId),
 	    
-	    dispatch_chunk(NewOwner, Data),
+	    dispatch_chunks(NewOwner, Data),
 	    
 	    Result = (catch Connection:open(NewOwner)),
 	    io:format("Connection closed with reason ~w\n", [Result])
@@ -152,23 +155,24 @@ handle_options_request(Req) ->
 	      ],
     Req:respond({200, Headers, []}).
 
+parse_body(BodyText) ->
+    io:format("Parsing body text '~w'\n", [BodyText]),
+    Body = case BodyText of
+	       <<"">> ->
+		   [];
+	       _ when is_binary(BodyText) ->
+		   mochijson2:decode(BodyText)
+	   end,
+    io:format("Body text parsed into '~w'\n", [Body]),
+    true = is_list(Body),
+    {ok, Body}.
+
 %% @doc Parse out the required and optional options.
 parse_kanaloa_options(Options) ->
     ContentType = case proplists:get_value(http_content_type, Options, <<"application/json">>) of
 		      C when is_binary(C) ->
 			  C
 		  end,
-    
-    ParseFun = case proplists:get_value(parse, Options, undefined) of
-		   undefined ->
-		       fun (Value) ->
-			       % BodyJson = mochijson2:decode(Value),
-			       % true = is_list(BodyJson),
-			       {ok, Value}
-		       end;
-		   P when is_function(P) ->
-		       P
-	       end,
     
     HandlerFun = case proplists:get_value(handler, Options, undefined) of
 		     undefined -> % TODO: Remove this debugging default
@@ -183,7 +187,7 @@ parse_kanaloa_options(Options) ->
 			 H
 		 end,
     
-    {ok, ContentType, ParseFun, HandlerFun}.
+    {ok, ContentType, HandlerFun}.
 
 %% @doc Parses the comet method out of the query string, throwing if anything else is encountered.
 parse_query_string([{"t", "longpoll"}], none) ->
