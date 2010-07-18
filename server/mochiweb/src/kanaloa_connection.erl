@@ -28,14 +28,15 @@ open(Owner) when is_pid(Owner) ->
 				 _ ->
 				     {?BATCH_CHECK_INTERVAL, ?BATCH_COUNT}
 			     end,
+    io:format("Using initial CheckInterval of ~w and Count ~w\n", [CheckInterval, Count]),
+    
     Batch = #batch {
       owner=Owner,
       check_interval = CheckInterval,
       count = Count
      },
     
-    {ok, NewBatch} = new_batch_state(Batch),
-    loop(NewBatch).
+    loop(Batch).
 
 %% @spec send(Data::iolist()) -> ok
 %% @doc Sends a message to the client.
@@ -69,6 +70,7 @@ loop(Batch) ->
 	    end,
 	    case new_batch_state(Batch) of
 		done ->
+		    io:format("Done sending; count ran out\n", []),
 		    exit(count);
 		{ok, NewBatch} ->
 		    loop(NewBatch)
@@ -80,7 +82,9 @@ loop(Batch) ->
 			   {send, Message} ->
 			       io:format("Connection received a send\n", []),
 			       Batch#batch{
-				 messages = [Message | Batch#batch.messages]
+				 messages = [Message | Batch#batch.messages],
+				 timeout = now_ms() + ?BATCH_INTERVAL,
+				 check_interval = ?BATCH_CHECK_INTERVAL % Longpoll should send.
 				};
 			   {'EXIT', Owner, _Reason} ->
 			       io:format("Connection received an owner exit\n", []),

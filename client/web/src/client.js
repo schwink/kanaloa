@@ -18,7 +18,7 @@ String.prototype.trim = function () {
 /// Top-level user-facing abstraction of all Kanaloa client functionality.
 function KanaloaConnection(server) {
     this.Settings = new KanaloaHttpSettings(false);
-    this.Server = server + "/" + this.Settings.ConnectionSuffix;
+    this.Server = server;
     this.ConnectionId = null;
     
     this._receiver = null;
@@ -61,7 +61,7 @@ KanaloaConnection.prototype.Connect = function() {
 	setTimeout(function() { connection.Connect(); }, connection.Settings.IncomingWait);
     }
     
-    var receiver = new KanaloaHttpPost(this.Server,
+    var receiver = new KanaloaHttpPost(this.Server + "/" + this.Settings.ConnectionSuffix,
 				       this.ConnectionId,
 				       this.Settings.ContentType,
 				       this.Settings.IsStreamMode,

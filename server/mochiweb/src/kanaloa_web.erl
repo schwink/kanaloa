@@ -47,14 +47,18 @@ loop(Req, Handler, ContentType) ->
 dispatch_chunks(_, []) ->
     ok;
 dispatch_chunks(Owner, [Data| Rest]) ->
-    io:format("dispatch_chunk: sending data '~s' to owner ~w\n", [Data, Owner]),
+    io:format("dispatch_chunks: sending data '~s' to owner ~w\n", [Data, Owner]),
     Owner ! {chunk, Data},
     dispatch_chunks(Owner, Rest).
 
-%% @spec get_comet_method(Request::mochiweb_request()) -> 'longpoll' | 'stream'
+dispatch_connection(Owner, NewConnection) ->
+    io:format("dispatch_connection: sending new connection to owner ~w\n", [Owner]),
+    Owner ! {connection, NewConnection}.
+
+%% @spec get_comet_method(Request::mochiweb_request()) -> 'longpoll' | 'stream' | 'none'
 get_comet_method(Req) ->
     QS = Req:parse_qs(),
-    parse_query_string(QS, none).
+    parse_query_string(QS).
 
 %% @spec get_connection_id(Request::mochiweb_request()) -> binary() | none
 get_connection_id(Req) ->
@@ -111,27 +115,46 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 	expired ->
 	    Req:respond({410, [], []}), % Gone
 	    exit(bad_connection_owner);
-	{ok, ExistingOwner} ->
+	{ok, ExistingOwner} when (CometMethod == none) ->
 	    io:format("Sending message to existing owner ~w\n", [ExistingOwner]),
 	    dispatch_chunks(ExistingOwner, Data),
 	    Req:ok({ContentType, [], []});
-	new ->
+	{ok, ExistingOwner} when (CometMethod /= none) ->
+	    io:format("Updating connection process for existing owner ~w\n", [ExistingOwner]),
+	    Connection = new_connection(Req, ContentType, ConnectionId, CometMethod),
+	    dispatch_connection(ExistingOwner, Connection),
+	    
+	    dispatch_chunks(ExistingOwner, Data),
+	    
+	    Result = (catch Connection:open(ExistingOwner)),
+	    io:format("Connection closed with reason ~w\n", [Result]);
+	new when (CometMethod /= none) ->
 	    NewConnectionId = kanaloa_guid_server:new_guid(),
 	    
-	    Headers = [{"ConnectionId", NewConnectionId}],
-	    Resp = Req:ok({ContentType, Headers, chunked}),
-	    Connection = kanaloa_connection:new(Resp, self(), CometMethod),
+	    Connection = case CometMethod of
+			     longpoll -> % For new longpoll, just send back the ConnectionId.
+				 Headers = [{"ConnectionId", NewConnectionId}],
+				 Req:ok({ContentType, Headers, []}),
+				 orphaned;
+			     _ ->
+				 new_connection(Req, ContentType, NewConnectionId, CometMethod)
+			 end,
 	    
-	    NewOwner = spawn(fun () ->
-				     io:format("Owner process spawned\n", []),
-				     Handler(Connection)
-			     end),
+	    NewOwner =  spawn(fun () ->
+				      io:format("Owner process spawned\n", []),
+				      process_flag(trap_exit, true),
+				      Handler(Connection)
+			      end),
 	    ok = kanaloa_guid_server:register_new(NewOwner, NewConnectionId),
 	    
 	    dispatch_chunks(NewOwner, Data),
 	    
-	    Result = (catch Connection:open(NewOwner)),
-	    io:format("Connection closed with reason ~w\n", [Result])
+	    case Connection of
+		orphaned -> ok;
+		_ ->
+		    Result = (catch Connection:open(NewOwner)),
+		    io:format("Connection closed with reason ~w\n", [Result])
+	    end
     end.
 
 %% @doc Responds properly to the HTTP OPTIONS request sent by Chrome if the request is cross-origin.
@@ -154,6 +177,11 @@ handle_options_request(Req) ->
 	       {"Access-Control-Allow-Methods", "POST"}
 	      ],
     Req:respond({200, Headers, []}).
+
+new_connection(Req, ContentType, ConnectionId, CometMethod) ->
+    Headers = [{"ConnectionId", ConnectionId}],
+    Resp = Req:ok({ContentType, Headers, chunked}),
+    kanaloa_connection:new(Resp, self(), CometMethod).
 
 parse_body(BodyText) ->
     io:format("Parsing body text '~w'\n", [BodyText]),
@@ -190,9 +218,11 @@ parse_kanaloa_options(Options) ->
     {ok, ContentType, HandlerFun}.
 
 %% @doc Parses the comet method out of the query string, throwing if anything else is encountered.
-parse_query_string([{"t", "longpoll"}], none) ->
+parse_query_string([]) ->
+    none;
+parse_query_string([{"t", "longpoll"}]) ->
     longpoll;
-parse_query_string([{"t", "stream"}], none) ->
+parse_query_string([{"t", "stream"}]) ->
     stream.
 
 %% @doc Parses the request. Throws if something invalid is encountered.

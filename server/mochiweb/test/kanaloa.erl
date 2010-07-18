@@ -15,8 +15,24 @@ ensure_started(App) ->
 	    ok
     end.
 
+handle_connection(orphaned) ->
+    receive
+	{connection, NewConnection} ->
+	    io:format("Got a new connection process, un-orphaning the handler.\n", []),
+	    handle_connection(NewConnection)
+    after 60000 ->
+	    io:format("Didn't get a new connection in time, the handler dies.\n", []),
+	    ok
+    end;
 handle_connection(Connection) ->
     receive
+	{connection, NewConnection} ->
+	    io:format("Got a new connection process, while the old one is alive.\n", []),
+	    Connection:close(),
+	    handle_connection(NewConnection);
+	{'EXIT', _Owner, _Reason} ->
+	    io:format("The connection process died; orphaning the handler.\n", []),
+	    handle_connection(orphaned);
 	{chunk, Data} ->
 	    io:format("Received a chunk! '~w'\n", [Data]),
 	    Reply = <<"Got your message, which is re-encoded as:">>,
