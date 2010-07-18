@@ -16,6 +16,11 @@ String.prototype.trim = function () {
 }
 
 /// Top-level user-facing abstraction of all Kanaloa client functionality.
+/// Parameters:
+/// server -- The url of the Kanaloa service to connect to.
+/// Properties:
+/// OnReceive -- Invoked when a message is received from the server. function(data)
+/// OnConnectionLost -- Invoked when an application-level timeout occurs. The server process that is handling this client has died. function()
 function KanaloaConnection(server) {
     this.Settings = new KanaloaHttpSettings();
     this.Server = server;
@@ -24,8 +29,9 @@ function KanaloaConnection(server) {
     this._receiver = null;
     this._sendBatcher = null;
     
-    this.OnReceive = function(data) { }
-    this.OnDebugEvent = function(message) { }
+    this.OnReceive = function(data) { };
+    this.OnConnectionLost = function() { };
+    this.OnDebugEvent = function(message) { };
     
     this.Connect();
 }
@@ -36,10 +42,29 @@ KanaloaConnection.prototype._ReportReceive = function(data) {
     }
 }
 
+KanaloaConnection.prototype._ReportConnectionLost = function() {
+    if (this.OnConnectionLost) {
+	this.OnConnectionLost();
+    }
+}
+
 KanaloaConnection.prototype._LogDebug = function(message) {
     if (this.OnDebugEvent) {
 	this.OnDebugEvent("Connection: " + message);
     }
+}
+
+KanaloaConnection.prototype._BumpIncoming = function(statusCode) {
+    if (statusCode == 410) {
+	// GONE
+	this.ConnectionId = null;
+	this._ReportConnectionLost();
+    }
+}
+
+KanaloaConnection.prototype._BumpOutgoing = function(statusCode) {
+    // Same thing.
+    this._BumpIncoming(statusCode);
 }
 
 KanaloaConnection.prototype.Connect = function() {
@@ -57,6 +82,7 @@ KanaloaConnection.prototype.Connect = function() {
     function ConnectionClosed(receiverPost, statusCode) {
 	connection._LogDebug("Closed with status: " + statusCode);
 	
+	connection._BumpIncoming(statusCode);
 	connection.Settings.BumpIncoming(statusCode);
 	connection._LogDebug("Waiting " + connection.Settings.IncomingWait + " ms before reconnect.");
 	setTimeout(function() { connection.Connect(); }, connection.Settings.IncomingWait);
@@ -87,8 +113,8 @@ KanaloaConnection.prototype.Send = function(data) {
     this._sendBatcher.Send(data);
 }
 
-var /*const*/ KANALOA_WAIT_INCOMING_BASE = 0;
-var /*const*/ KANALOA_WAIT_OUTGOING_BASE = 0;
+var /*const*/ KANALOA_WAIT_INCOMING_BASE = 10;
+var /*const*/ KANALOA_WAIT_OUTGOING_BASE = 10;
 
 /// Manages timeouts and other settings for the client.
 function KanaloaHttpSettings() {
@@ -190,6 +216,7 @@ KanaloaHttpSendBatcher.prototype._SendPost = function() {
 	}
 
 	// Loop to pick up accumulated messages.
+	connection._BumpOutgoing(statusCode);
 	connection.Settings.BumpOutgoing(statusCode);
 	connection._LogDebug("Waiting " + connection.Settings.OutgoingWait + " ms before reconnect.");
 	setTimeout(function() { batcher._SendPost(); }, connection.Settings.OutgoingWait);
