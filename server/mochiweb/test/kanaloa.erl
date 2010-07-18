@@ -19,7 +19,7 @@ handle_connection(Connection) ->
     receive
 	{chunk, _Data} ->
 	    io:format("Received a chunk!\n"),
-	    Connection:send("Got your message!"),
+	    Connection:send(<<"Got your message!">>),
 	    handle_connection(Connection)
     end.
 
