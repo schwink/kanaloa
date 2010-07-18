@@ -22,7 +22,7 @@ String.prototype.trim = function () {
 /// OnReceive -- Invoked when a message is received from the server. function(data)
 /// OnConnectionLost -- Invoked when an application-level timeout occurs. The server process that is handling this client has died. function()
 function KanaloaConnection(server) {
-    this.Settings = new KanaloaHttpSettings();
+    this.Settings = new _KanaloaHttpSettings();
     this.Server = server;
     this.ConnectionId = null;
     
@@ -88,7 +88,7 @@ KanaloaConnection.prototype.Connect = function() {
 	setTimeout(function() { connection.Connect(); }, connection.Settings.IncomingWait);
     }
     
-    var receiver = new KanaloaHttpPost(this.Server + "/" + this.Settings.ConnectionSuffix,
+    var receiver = new _KanaloaHttpPost(this.Server + "/" + this.Settings.ConnectionSuffix,
 				       this.ConnectionId,
 				       this.Settings.ContentType,
 				       this.Settings.IsStreamMode,
@@ -105,7 +105,7 @@ KanaloaConnection.prototype.Connect = function() {
 KanaloaConnection.prototype.Send = function(data) {
     if (this._sendBatcher == null) {
 	var connection = this;
-	this._sendBatcher = new KanaloaHttpSendBatcher(this,
+	this._sendBatcher = new _KanaloaHttpSendBatcher(this,
 						       function(message) { connection._LogDebug(message); }
 						       );
     }
@@ -117,7 +117,7 @@ var /*const*/ KANALOA_WAIT_INCOMING_BASE = 10;
 var /*const*/ KANALOA_WAIT_OUTGOING_BASE = 10;
 
 /// Manages timeouts and other settings for the client.
-function KanaloaHttpSettings() {
+function _KanaloaHttpSettings() {
     this.IsStreamMode = this._IsStreamMode();
     this.ContentType = "application/json";
 
@@ -131,17 +131,17 @@ function KanaloaHttpSettings() {
     this.Reset();
 }
 
-KanaloaHttpSettings.prototype._IsStreamMode = function() {
+_KanaloaHttpSettings.prototype._IsStreamMode = function() {
     var userAgent = navigator.userAgent;
     return (userAgent.indexOf("MSIE") == -1);
 }
 
-KanaloaHttpSettings.prototype.Reset = function() {
+_KanaloaHttpSettings.prototype.Reset = function() {
     this.IncomingWait = KANALOA_WAIT_INCOMING_BASE;
     this.OutgoingWait = KANALOA_WAIT_OUTGOING_BASE;
 }
 
-KanaloaHttpSettings.prototype.BumpIncoming = function(statusCode) {
+_KanaloaHttpSettings.prototype.BumpIncoming = function(statusCode) {
     if (statusCode != 200) {
 	if (this.IncomingWait == KANALOA_WAIT_INCOMING_BASE) {
 	    this.IncomingWait = 1000;
@@ -152,7 +152,7 @@ KanaloaHttpSettings.prototype.BumpIncoming = function(statusCode) {
     }
 }
 
-KanaloaHttpSettings.prototype.BumpOutgoing = function(statusCode) {
+_KanaloaHttpSettings.prototype.BumpOutgoing = function(statusCode) {
     if (statusCode != 200) {
 	if (this.OutgoingWait == KANALOA_WAIT_OUTGOING_BASE) {
 	    this.OutgoingWait = 1000;
@@ -164,7 +164,7 @@ KanaloaHttpSettings.prototype.BumpOutgoing = function(statusCode) {
 }
 
 /// Once a ConnectionId is established by the initial request, this class batches outgoing data.
-function KanaloaHttpSendBatcher(connection, onDebugEvent) {
+function _KanaloaHttpSendBatcher(connection, onDebugEvent) {
     this._connection = connection;
     this._outgoing = [];
     this._post = null;
@@ -172,13 +172,13 @@ function KanaloaHttpSendBatcher(connection, onDebugEvent) {
     this._onDebugEvent = onDebugEvent;
 }
 
-KanaloaHttpSendBatcher.prototype._LogDebug = function(message) {
+_KanaloaHttpSendBatcher.prototype._LogDebug = function(message) {
     if (this._onDebugEvent) {
 	this._onDebugEvent("HttpSendBatcher: " + message);
     }
 }
 
-KanaloaHttpSendBatcher.prototype.Send = function(data) {
+_KanaloaHttpSendBatcher.prototype.Send = function(data) {
     if (data) {
 	this._LogDebug("Adding data \"" + data + "\" to outbox.");
 	this._outgoing.push(data);
@@ -187,7 +187,7 @@ KanaloaHttpSendBatcher.prototype.Send = function(data) {
     this._SendPost();
 }
 
-KanaloaHttpSendBatcher.prototype._SendPost = function() {
+_KanaloaHttpSendBatcher.prototype._SendPost = function() {
     if (this._outgoing.length == 0) {
 	this._LogDebug("No messages to send.");
 	return;
@@ -224,7 +224,7 @@ KanaloaHttpSendBatcher.prototype._SendPost = function() {
     
     this._LogDebug("There is no active post; creating a new one.");
     // TODO: Reuse existing post or remove post reconnect logic.
-    var post = new KanaloaHttpPost(connection.Server,
+    var post = new _KanaloaHttpPost(connection.Server,
 				   connection.ConnectionId,
 				   connection.Settings.ContentType,
 				   connection.Settings.IsStreamMode,
@@ -235,7 +235,7 @@ KanaloaHttpSendBatcher.prototype._SendPost = function() {
 				   );
     batcher._post = post;
     
-    // TODO: Limit size of sent string to 1 kB
+    // TODO: Limit size of sent string to 1 MB to match server limit.
     var textOutgoing = JSON.stringify(this._outgoing);
     this._LogDebug("Sending batch \"" + textOutgoing + "\"");
     this._post.Send(textOutgoing);
@@ -250,7 +250,7 @@ KanaloaHttpSendBatcher.prototype._SendPost = function() {
 /// onReceiveChunk -- On stream-capable browsers, this is fired once per chunk. Otherwise, once per request.
 /// onClose -- Fired when the underlying request dies.
 /// onDebugEvent -- Reports interesting diagnostic information.
-function KanaloaHttpPost(server, connectionId, httpContentType, isStreamMode, onOpen, onReceiveChunk, onClose, onDebugEvent) {
+function _KanaloaHttpPost(server, connectionId, httpContentType, isStreamMode, onOpen, onReceiveChunk, onClose, onDebugEvent) {
     this._server = server;
     this.ConnectionId = connectionId;
     this._contentType = httpContentType;
@@ -263,31 +263,31 @@ function KanaloaHttpPost(server, connectionId, httpContentType, isStreamMode, on
     this._onDebugEvent = onDebugEvent;
 }
 
-KanaloaHttpPost.prototype._ReportOpen = function() {
+_KanaloaHttpPost.prototype._ReportOpen = function() {
     if (this._onOpen) {
 	this._onOpen();
     }
 }
 
-KanaloaHttpPost.prototype._ReportChunk = function(data) {
+_KanaloaHttpPost.prototype._ReportChunk = function(data) {
     if (this._onReceiveChunk) {
 	this._onReceiveChunk(data);
     }
 }
 
-KanaloaHttpPost.prototype._ReportClose = function(httpStatusCode) {
+_KanaloaHttpPost.prototype._ReportClose = function(httpStatusCode) {
     if (this._onClose) {
 	this._onClose(httpStatusCode);
     }
 }
 
-KanaloaHttpPost.prototype._LogDebug = function(message) {
+_KanaloaHttpPost.prototype._LogDebug = function(message) {
     if (this._onDebugEvent) {
 	this._onDebugEvent("HttpPost: " + message);
     }
 }
 
-KanaloaHttpPost.prototype.IsActive = function() {
+_KanaloaHttpPost.prototype.IsActive = function() {
     if (this._request && (this._request.readyState != READYSTATE_UNSENT || this._request.readyState != READYSTATE_DONE)) {
 	return false;
     }
@@ -295,7 +295,7 @@ KanaloaHttpPost.prototype.IsActive = function() {
     return true;
 }
 
-KanaloaHttpPost.prototype.Connect = function() {
+_KanaloaHttpPost.prototype.Connect = function() {
     if (this._request) {
 	if (this._request.readyState == READYSTATE_UNSENT) {
 	    this._LogDebug("Connect: Using existing request.");
@@ -380,7 +380,7 @@ KanaloaHttpPost.prototype.Connect = function() {
     return true;
 }
 
-KanaloaHttpPost.prototype.Send = function(data) {
+_KanaloaHttpPost.prototype.Send = function(data) {
     this.Connect();
     this._request.send(data);
 }
