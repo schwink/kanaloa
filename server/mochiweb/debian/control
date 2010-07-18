@@ -8,6 +8,6 @@ Homepage:
 
 Package: kanaloa
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, erlang-nox, mochiweb
+Depends: ${shlibs:Depends}, ${misc:Depends}, erlang-nox, mochiweb, uuid
 Suggests: 
 Description: The Kanaloa web streaming framework.
