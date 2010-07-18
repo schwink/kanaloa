@@ -25,27 +25,25 @@ open(Owner) when is_pid(Owner) ->
 %% @spec send(Data::iolist()) -> ok
 %% @doc Sends a message to the client.
 send(Message) ->
-    io:format("Someone called send\n", []),
     Self ! {send, Message},
     ok.
 
 %% @spec close() -> ok
 %% @doc Closes the connection. The process will exit; no further data can be sent.
 close() ->
-    io:format("Someone called close\n", []),
     Self ! close,
     ok.
 
 %% Internal API
 
-%% @spec Loops to send batches.
+%% @doc Loops to send batches.
 %% If no outgoing messages are accumulated, we still send empty data to detect if the client is connected.
 loop(BatchSettings, Count) ->
     % To prevent memory leaks on the client, we do not stream forever, but rather limit the count of batches that we send.
     % The client will reconnect when this connection is terminated.
     if
 	Count < 1 ->
-	    io:format("Done sending; count ran out\n", []),
+	    io:format("Connection reached batch count.\n", []),
 	    exit(count);
 	true ->
 	    ok
@@ -85,8 +83,6 @@ loop(BatchSettings, Count) ->
 %% @spec loop_accumulate(BatchSettings::batch_settings(), Messages::list(), Timeout::integer()) -> {Status::ok | owner_exit, Messages::list()}
 %% @doc Loops to accumulate messages, for one timeout period.
 loop_accumulate(BatchSettings, Messages, Timeout) when is_list(Messages) andalso is_integer(Timeout)->
-    io:format("Listening for the next message, with timeout ~w\n", [Timeout]),
-    
     Now = now_ms(),
     if
 	Timeout < Now ->  % Check batch timeout
@@ -96,19 +92,15 @@ loop_accumulate(BatchSettings, Messages, Timeout) when is_list(Messages) andalso
 	    Owner = BatchSettings#batch_settings.owner,
 	    receive
 		{send, Message} ->
-		    io:format("Connection received a send\n", []),
 		    loop_accumulate(BatchSettings, [Message | Messages], Timeout);
 		
 		{'EXIT', Owner, _Reason} ->
-		    io:format("Connection received an owner exit\n", []),
 		    {owner_exit, Messages};
 		
 		close ->
-		    io:format("Connection received a close\n", []),
 		    {close, Messages}
 	    
 	    after BatchSettings#batch_settings.check_interval ->
-		    io:format("listen timeout, better check if the batch Timeout has occurred\n", []),
 		    loop_accumulate(BatchSettings, Messages, Timeout)
 	    end
     end.
@@ -124,11 +116,10 @@ now_ms() ->
 %% @spec send_batch([message()]) -> ok
 %% @doc Sends the batch of messages over the wire as a HTTP chunk, encoded as a JSON array.
 send_batch([]) ->
-    io:format("Sending empty batch. Keepalive?\n", []),
+    io:format("Sending empty batch to test that the client is still receiving.\n", []),
     MochiResp:write_chunk(<<"\n">>), % Send a batch to detect if the connection has closed.
     ok;
 send_batch(Messages) when is_list(Messages) ->
     io:format("Sending batch of ~w messages\n", [length(Messages)]),
     Data = mochijson2:encode(Messages),
-    io:format("Batch is JSON encoded as ~s messages\n", [Data]),
-    MochiResp:write_chunk([<<"\n">>, Data, <<"\n">>]).
+    MochiResp:write_chunk(Data).

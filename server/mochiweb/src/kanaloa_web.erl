@@ -100,39 +100,32 @@ get_mochiweb_options(Options) ->
 %% @doc Gets the path that the request was made to.
 get_path(Req) ->
     FullPath = Req:get(path),
-
-    % Remove the "/thruster" prefix if it is present
-    Path = case string:substr(FullPath, 2, 8) of
-	       "thruster" ->
-		   string:substr(FullPath, 10);
-	       _ ->
-		   FullPath
-	   end,
-    Path.
+    FullPath.
 
 handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, Data) ->
+    IsDownloadRequest = (CometMethod /= none),
     case get_connection_owner(ConnectionId) of
-	expired ->
+	expired -> % The owner has died. Tell the client to reconnect.
 	    Req:respond({410, [], []}), % Gone
 	    exit(bad_connection_owner);
-	{ok, ExistingOwner} when (CometMethod == none) ->
-	    io:format("Sending message to existing owner ~w\n", [ExistingOwner]),
+	
+	{ok, ExistingOwner} when not IsDownloadRequest -> % An upload request is posting data.
 	    dispatch_chunks(ExistingOwner, Data),
 	    Req:ok({ContentType, [], []});
-	{ok, ExistingOwner} when (CometMethod /= none) ->
-	    io:format("Updating connection process for existing owner ~w\n", [ExistingOwner]),
+	
+	{ok, ExistingOwner} when IsDownloadRequest -> % A download request is attempting to reconnect.
 	    Connection = new_connection(Req, ContentType, ConnectionId, CometMethod),
 	    dispatch_connection(ExistingOwner, Connection),
 	    
 	    dispatch_chunks(ExistingOwner, Data),
-	    
-	    Result = (catch Connection:open(ExistingOwner)),
-	    io:format("Connection closed with reason ~w\n", [Result]);
-	new when (CometMethod /= none) ->
+
+	    open_connection(Connection, ExistingOwner);
+	
+	new when IsDownloadRequest -> % A new connection is being initiated.
 	    NewConnectionId = kanaloa_guid_server:new_guid(),
 	    
 	    Connection = case CometMethod of
-			     longpoll -> % For new longpoll, just send back the ConnectionId.
+			     longpoll -> % For new longpoll, just send back the ConnectionId so the client can finish initializing.
 				 Headers = [{"ConnectionId", NewConnectionId}],
 				 Req:ok({ContentType, Headers, []}),
 				 orphaned;
@@ -151,9 +144,7 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 	    
 	    case Connection of
 		orphaned -> ok;
-		_ ->
-		    Result = (catch Connection:open(NewOwner)),
-		    io:format("Connection closed with reason ~w\n", [Result])
+		_ -> open_connection(Connection, NewOwner)
 	    end
     end.
 
@@ -182,6 +173,12 @@ new_connection(Req, ContentType, ConnectionId, CometMethod) ->
     Headers = [{"ConnectionId", ConnectionId}],
     Resp = Req:ok({ContentType, Headers, chunked}),
     kanaloa_connection:new(Resp, self(), CometMethod).
+
+%% @doc Opens a connection and waits for it to die, reporting the cause of death.
+open_connection(Connection, Owner) ->
+    Result = (catch Connection:open(Owner)),
+    io:format("Connection closed with reason ~w\n", [Result]),
+    ok.
 
 parse_body(BodyText) ->
     io:format("Parsing body text '~w'\n", [BodyText]),
