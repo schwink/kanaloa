@@ -17,7 +17,7 @@ String.prototype.trim = function () {
 
 /// Top-level user-facing abstraction of all Kanaloa client functionality.
 function KanaloaConnection(server) {
-    this.Settings = new KanaloaHttpSettings(true);
+    this.Settings = new KanaloaHttpSettings(false);
     this.Server = server + "/" + this.Settings.ConnectionSuffix;
     this.ConnectionId = null;
     
@@ -64,6 +64,7 @@ KanaloaConnection.prototype.Connect = function() {
     var receiver = new KanaloaHttpPost(this.Server,
 				       this.ConnectionId,
 				       this.Settings.ContentType,
+				       this.Settings.IsStreamMode,
 				       function() { ConnectionOpened(this); },
 				       function(data) { connection._ReportReceive(data); },
 				       function(httpStatusCode) { ConnectionClosed(this, httpStatusCode); },
@@ -90,10 +91,10 @@ var /*const*/ KANALOA_WAIT_OUTGOING_BASE = 0;
 
 /// Manages timeouts and other settings for the client.
 function KanaloaHttpSettings(isStreamMode) {
-    this.StreamMode = isStreamMode;
+    this.IsStreamMode = isStreamMode;
     this.ContentType = "application/json";
 
-    if (isStream) {
+    if (isStreamMode) {
 	this.ConnectionSuffix = "?t=stream";
     }
     else {
@@ -193,6 +194,7 @@ KanaloaHttpSendBatcher.prototype._SendPost = function() {
     var post = new KanaloaHttpPost(connection.Server,
 				   connection.ConnectionId,
 				   connection.Settings.ContentType,
+				   connection.Settings.IsStreamMode,
 				   null,
 				   null,
 				   function(httpStatusCode) { PostCompleted(this, httpStatusCode); },
@@ -209,13 +211,17 @@ KanaloaHttpSendBatcher.prototype._SendPost = function() {
 
 /// Wraps XmlHttpRequest to provide lowest-level send and receive functionality.
 /// server -- The full URL to post to.
+/// connectionId -- The value to set for the ConnectionId header.
+/// httpContentType -- The value to set for the Content-Type header.
+/// isStreamMode -- If false, will not try to read headers or responseText before request complete (IE compat == false).
 /// onReceiveChunk -- On stream-capable browsers, this is fired once per chunk. Otherwise, once per request.
 /// onClose -- Fired when the underlying request dies.
 /// onDebugEvent -- Reports interesting diagnostic information.
-function KanaloaHttpPost(server, connectionId, httpContentType, onOpen, onReceiveChunk, onClose, onDebugEvent) {
+function KanaloaHttpPost(server, connectionId, httpContentType, isStreamMode, onOpen, onReceiveChunk, onClose, onDebugEvent) {
     this._server = server;
     this.ConnectionId = connectionId;
     this._contentType = httpContentType;
+    this._isStreamMode = isStreamMode;
     this._request = null;
 
     this._onOpen = onOpen;
@@ -283,7 +289,8 @@ KanaloaHttpPost.prototype.Connect = function() {
 	
 	//connection._LogDebug("responseText is \"" + request.responseText + "\"");
 	
-	if (readyState == READYSTATE_HEADERSRECEIVED) {
+	if ((connection._isStreamMode && readyState == READYSTATE_HEADERSRECEIVED) ||
+	    (!connection._isStreamMode && readyState == READYSTATE_DONE)) {
 	    var headers = request.getAllResponseHeaders();
 	    connection._LogDebug("AllResponseHeaders is \"" + headers + "\"");
 	    
@@ -298,7 +305,8 @@ KanaloaHttpPost.prototype.Connect = function() {
 	    connection._ReportOpen();
 	}
 	
-	if (readyState == READYSTATE_LOADING || readyState == READYSTATE_DONE) {
+	if ((connection._isStreamMode && readyState == READYSTATE_LOADING) ||
+	    readyState == READYSTATE_DONE) {
 	    var allData = request.responseText;
 	    var data = allData.substring(request.lenReceived);
 	    data = data.trim();
