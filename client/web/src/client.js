@@ -17,14 +17,16 @@ String.prototype.trim = function () {
 
 /// Top-level user-facing abstraction of all Kanaloa client functionality.
 function KanaloaConnection(server) {
-    this._server = server;
-    this._clientId = null;
+    this.Settings = new KanaloaHttpSettings(true);
+    this.Server = server + "/" + this.Settings.ConnectionSuffix;
+    this.ConnectionId = null;
+    
     this._receiver = null;
     this._sendBatcher = null;
-
+    
     this.OnReceive = function(data) { }
     this.OnDebugEvent = function(message) { }
-
+    
     this.Connect();
 }
 
@@ -47,16 +49,24 @@ KanaloaConnection.prototype.Connect = function() {
 	connection._LogDebug("Opened");
 	
 	// Now that we have the ConnectionId, we can begin transmitting outgoing posts.
-	connection._EnsureSendBatcher(); // Ensure that the batcher is created.
-	connection._sendBatcher.SetConnectionId(receiverPost.ConnectionId);
+	connection.ConnectionId = receiverPost.ConnectionId;
+	connection.Send();
     }
 
-    var receiver = new KanaloaHttpPost(this._server,
-				       null,
-				       "application/json",
+    function ConnectionClosed(receiverPost, statusCode) {
+	connection._LogDebug("Closed with status: " + statusCode);
+	
+	connection.Settings.BumpIncoming(statusCode);
+	connection._LogDebug("Waiting " + connection.Settings.IncomingWait + " ms before reconnect.");
+	setTimeout(function() { connection.Connect(); }, connection.Settings.IncomingWait);
+    }
+    
+    var receiver = new KanaloaHttpPost(this.Server,
+				       this.ConnectionId,
+				       this.Settings.ContentType,
 				       function() { ConnectionOpened(this); },
 				       function(data) { connection._ReportReceive(data); },
-				       function(httpStatusCode) { connection._LogDebug("Closed with status: " + httpStatusCode); },
+				       function(httpStatusCode) {  },
 				       function(message) { connection._LogDebug(message); }
 				       );
     this._receiver = receiver;
@@ -64,26 +74,65 @@ KanaloaConnection.prototype.Connect = function() {
     receiver.Send("");
 }
 
-KanaloaConnection.prototype._EnsureSendBatcher = function() {
+KanaloaConnection.prototype.Send = function(data) {
     if (this._sendBatcher == null) {
 	var connection = this;
-	this._sendBatcher = new KanaloaHttpSendBatcher(this._server,
-						       this._contentType,
+	this._sendBatcher = new KanaloaHttpSendBatcher(this,
 						       function(message) { connection._LogDebug(message); }
 						       );
     }
-}
 
-KanaloaConnection.prototype.Send = function(data) {
-    this._EnsureSendBatcher();
     this._sendBatcher.Send(data);
 }
 
+const KANALOA_WAIT_INCOMING_BASE = 0;
+const KANALOA_WAIT_OUTGOING_BASE = 0;
+
+/// Manages timeouts and other settings for the client.
+function KanaloaHttpSettings(isStream) {
+    this._isStream = isStream;
+    this.ContentType = "application/json";
+
+    if (isStream) {
+	this.ConnectionSuffix = "?t=stream";
+    }
+    else {
+	this.ConnectionSuffix = "?t=longpoll";
+    }
+    
+    this.Reset();
+}
+
+KanaloaHttpSettings.prototype.Reset = function() {
+    this.IncomingWait = KANALOA_WAIT_INCOMING_BASE;
+    this.OutgoingWait = KANALOA_WAIT_OUTGOING_BASE;
+}
+
+KanaloaHttpSettings.prototype.BumpIncoming = function(statusCode) {
+    if (statusCode != 200) {
+	if (this.IncomingWait == KANALOA_WAIT_INCOMING_BASE) {
+	    this.IncomingWait = 1000;
+	}
+	else if (this.IncomingWait < 100000) {
+	    this.IncomingWait *= 2;
+	}
+    }
+}
+
+KanaloaHttpSettings.prototype.BumpOutgoing = function(statusCode) {
+    if (statusCode != 200) {
+	if (this.OutgoingWait == KANALOA_WAIT_OUTGOING_BASE) {
+	    this.OutgoingWait = 1000;
+	}
+	else if (this.OutgoingWait < 100000) {
+	    this.OutgoingWait *= 2;
+	}
+    }
+}
+
 /// Once a ConnectionId is established by the initial request, this class batches outgoing data.
-function KanaloaHttpSendBatcher(server, httpContentType, onDebugEvent) {
-    this._server = server;
-    this._contentType = httpContentType;
-    this._connectionId = null;
+function KanaloaHttpSendBatcher(connection, onDebugEvent) {
+    this._connection = connection;
     this._outgoing = [];
     this._post = null;
 
@@ -96,15 +145,12 @@ KanaloaHttpSendBatcher.prototype._LogDebug = function(message) {
     }
 }
 
-KanaloaHttpSendBatcher.prototype.SetConnectionId = function(connectionId) {
-    this._LogDebug("Setting ConnectionId.");
-    this._connectionId = connectionId;
-    this._SendPost();
-}
-
 KanaloaHttpSendBatcher.prototype.Send = function(data) {
-    this._LogDebug("Adding data \"" + data + "\" to outbox.");
-    this._outgoing.push(data);
+    if (data) {
+	this._LogDebug("Adding data \"" + data + "\" to outbox.");
+	this._outgoing.push(data);
+    }
+    
     this._SendPost();
 }
 
@@ -114,7 +160,7 @@ KanaloaHttpSendBatcher.prototype._SendPost = function() {
 	return;
     }
     
-    if (this._connectionId == null) {
+    if (this._connection.ConnectionId == null) {
 	this._LogDebug("ConnectionId not set yet.");
 	return;
     }
@@ -126,7 +172,8 @@ KanaloaHttpSendBatcher.prototype._SendPost = function() {
     }
 
     var batcher = this;
-
+    var connection = batcher._connection;
+    
     function PostCompleted(post, statusCode) {
 	// If successful, remove sent messages from outbox.
 	if (statusCode == 200) {
@@ -136,14 +183,16 @@ KanaloaHttpSendBatcher.prototype._SendPost = function() {
 	}
 
 	// Loop to pick up accumulated messages.
-	batcher._SendPost();
+	connection.Settings.BumpOutgoing(statusCode);
+	connection._LogDebug("Waiting " + connection.Settings.OutgoingWait + " ms before reconnect.");
+	setTimeout(function() { batcher._SendPost(); }, connection.Settings.OutgoingWait);
     }
     
     this._LogDebug("There is no active post; creating a new one.");
     // TODO: Reuse existing post or remove post reconnect logic.
-    var post = new KanaloaHttpPost(this._server,
-				   this._connectionId,
-				   this._contentType,
+    var post = new KanaloaHttpPost(connection.Server,
+				   connection.ConnectionId,
+				   connection.Settings.ContentType,
 				   null,
 				   null,
 				   function(httpStatusCode) { PostCompleted(this, httpStatusCode); },
