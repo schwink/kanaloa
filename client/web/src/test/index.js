@@ -1,32 +1,34 @@
-Element.prototype.removeAllChildren = function() {
-    if (this.hasChildNodes()) {
-	while (this.childNodes.length >= 1) {
-	    this.removeChild( this.firstChild );       
+
+function removeAllChildren(element) {
+    if (element.hasChildNodes()) {
+	while (element.childNodes.length >= 1) {
+	    element.removeChild( element.firstChild );       
 	}
     }
 }
 
-Element.prototype.addChildElement = function(elementType) {
-    var element = document.createElement(elementType);
-    return this.appendChild(element);
+function addChildElement(element, elementType) {
+    var child = document.createElement(elementType);
+    return element.appendChild(child);
 }
 
 var requests = [];
 function updateRequestMessages() {
     var requestMessagesElement = document.getElementById("requestMessages");
     if (requestMessagesElement) {
-	requestMessagesElement.removeAllChildren();
+	removeAllChildren(requestMessagesElement);
 	
 	for (var requestId = 0; requestId < requests.length; requestId++) {
-	    var requestTable = requestMessagesElement.addChildElement("table");
+	    var requestTable = addChildElement(requestMessagesElement, "table");
 	    requestTable.border = 1;
 	    var request = requests[requestId];
 	    
 	    for (var messageId in request.statusMessages) {
 		var message = request.statusMessages[messageId];
-		var messageRow = requestTable.addChildElement("tr");
-		messageRow.addChildElement("td").innerHTML = requestId.toString();
-		messageRow.addChildElement("td").addChildElement("pre").innerHTML = message;
+		var messageRow = addChildElement(requestTable, "tr");
+		addChildElement(messageRow, "td").innerHTML = requestId.toString();
+		var messageCol = addChildElement(messageRow, "td");
+		addChildElement(messageCol, "pre").innerHTML = message;
 	    }
 	}
     }
