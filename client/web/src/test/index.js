@@ -34,7 +34,7 @@ function updateRequestMessages() {
 
 function submit() {
     var server = document.getElementById("server").value;
-    var body = document.getElementById("body").value;
+    var bodyText = document.getElementById("body").textContent;
     
     var connection = new KanaloaConnection(server);
 
@@ -50,7 +50,7 @@ function submit() {
 	updateRequestMessages();	
     }
 
-    connection.Send(body);
+    connection.Send(bodyText);
 
     return false;
 }

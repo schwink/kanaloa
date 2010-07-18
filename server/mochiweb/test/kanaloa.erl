@@ -17,9 +17,10 @@ ensure_started(App) ->
 
 handle_connection(Connection) ->
     receive
-	{chunk, _Data} ->
+	{chunk, Data} ->
 	    io:format("Received a chunk!\n"),
-	    Connection:send(<<"Got your message!">>),
+	    Reply = <<"Got your message!:">>,
+	    Connection:send(<<Reply/binary, Data/binary>>),
 	    handle_connection(Connection)
     end.
 

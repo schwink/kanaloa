@@ -12,7 +12,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -export([new_guid/0]).
--export([register/2, find/1]).
+-export([register_new/2, find/1]).
 
 -define(GUID_SERVER, whereis(?MODULE)).
 
@@ -26,9 +26,9 @@ new_guid() ->
     Uuid = string:strip(Out, right, $\n),
     list_to_binary(Uuid).
 
-%% @spec register(Process::pid(), Id::binary()) -> ok | duplicate_process | duplicate_id
+%% @spec register_new(Process::pid(), Id::binary()) -> ok | duplicate_process | duplicate_id
 %% @doc Adds a process identifier to the index.
-register(Process, Id) when is_pid(Process) andalso is_binary(Id) ->
+register_new(Process, Id) when is_pid(Process) andalso is_binary(Id) ->
     gen_server:call(?GUID_SERVER, {register, Id, Process}).
 
 %% @spec find(Id::binary()) -> {ok, Process::pid()} | no_id
@@ -63,6 +63,8 @@ handle_call({register, Id, Process}, _From, State) ->
 	none ->
 	    case gb_trees:lookup(Process, State#state.process_to_id) of
 		none ->
+		    io:format("kanaloa_guid_server: registering Id ~s\n", [Id]),
+
 		    link(Process),
 		    NewId = gb_trees:insert(Id, Process, State#state.id_to_process),
 		    NewProcess = gb_trees:insert(Process, Id, State#state.process_to_id),
@@ -72,17 +74,21 @@ handle_call({register, Id, Process}, _From, State) ->
 		     },
 		    {reply, ok, NewState};
 		_ ->
+		    io:format("kanaloa_guid_server: not registering duplicate Id ~s\n", [Id]),
 		    {reply, duplicate_process, State}
 	    end;
 	_ ->
+	    io:format("kanaloa_guid_server: not registering Id ~s for duplicate process\n", [Id]),
 	    {reply, duplicate_id, State}
     end;
 
 handle_call({find, Id}, _From, State) ->
     case gb_trees:lookup(Id, State#state.id_to_process) of
 	none ->
+	    io:format("kanaloa_guid_server: couldn't find Id ~s\n", [Id]),
 	    {reply, no_id, State};
 	{value, Process} when is_pid(Process) ->
+	    io:format("kanaloa_guid_server: found Id ~s Process ~w\n", [Id, Process]),
 	    {reply, {ok, Process}, State}
     end.
 

@@ -130,5 +130,5 @@ send_batch([]) ->
 send_batch(Messages) when is_list(Messages) ->
     io:format("Sending batch of ~w messages\n", [length(Messages)]),
     Data = mochijson2:encode(Messages),
-    io:format("Datch is JSON encoded as ~s messages\n", [Data]),
+    io:format("Batch is JSON encoded as ~s messages\n", [Data]),
     MochiResp:write_chunk([<<"\n">>, Data, <<"\n">>]).

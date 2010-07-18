@@ -45,6 +45,7 @@ loop(Req, Parser, Handler, ContentType) ->
 %% Internal API
 
 dispatch_chunk(Owner, Data) ->
+    io:format("dispatch_chunk: sending data '~s' to owner ~w\n", [Data, Owner]),
     Owner ! {chunk, Data}.
 
 %% @spec get_comet_method(Request::mochiweb_request()) -> 'longpoll' | 'stream'
@@ -57,13 +58,24 @@ get_connection_id(Req) ->
     case Req:get_header_value("ConnectionId") of
 	undefined ->
 	    none;
+	Value when is_list(Value) ->
+	    list_to_binary(Value);
 	Value when is_binary(Value) ->
 	    Value
     end.
 
-get_connection_owner(_ConnectionId) ->
-    % TODO: Consult guid_server
-    new.
+get_connection_owner(ConnectionId) ->
+    case ConnectionId of
+	none ->
+	    new;
+	Binary when is_binary(Binary) ->
+	    case kanaloa_guid_server:find(ConnectionId) of
+		{ok, Owner} when is_pid(Owner) ->
+		    {ok, Owner};
+		_ ->
+		    expired
+	    end
+    end.
 
 %% @doc We need to supervise the options passed to mochiweb.
 get_mochiweb_options(Options) ->
@@ -97,6 +109,7 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 	    Req:respond({410, [], []}), % Gone
 	    exit(bad_connection_owner);
 	{ok, ExistingOwner} ->
+	    io:format("Sending message to existing owner ~w\n", [ExistingOwner]),
 	    dispatch_chunk(ExistingOwner, Data),
 	    Req:ok({ContentType, [], []});
 	new ->
@@ -110,7 +123,7 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 				     io:format("Owner process spawned\n", []),
 				     Handler(Connection)
 			     end),
-	    ok = kanaloa_guid_server:register(NewOwner, NewConnectionId),
+	    ok = kanaloa_guid_server:register_new(NewOwner, NewConnectionId),
 	    
 	    dispatch_chunk(NewOwner, Data),
 	    
