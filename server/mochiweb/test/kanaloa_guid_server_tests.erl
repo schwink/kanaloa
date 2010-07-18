@@ -37,8 +37,9 @@ find_empty_test() ->
 find_existing_test() ->
     {ok, _Server} = start_link(),
     
+    Id = kanaloa_guid_server:new_guid(),
     Pid = get_sample_pid(),
-    {ok, Id} = kanaloa_guid_server:register(Pid),
+    ok = kanaloa_guid_server:register_new(Pid, Id),
     {ok, ReceivedPid} = kanaloa_guid_server:find(Id),
     
     ?assertEqual(Pid, ReceivedPid),
@@ -48,14 +49,17 @@ find_existing_test() ->
 find_multiple_existing_test() ->
     {ok, _Server} = start_link(),
     
+    Id1 = kanaloa_guid_server:new_guid(),
     Pid1 = get_sample_pid(),
-    {ok, Id1} = kanaloa_guid_server:register(Pid1),
+    ok = kanaloa_guid_server:register_new(Pid1, Id1),
 
+    Id2 = kanaloa_guid_server:new_guid(),
     Pid2 = get_sample_pid(),
-    {ok, Id2} = kanaloa_guid_server:register(Pid2),
+    ok = kanaloa_guid_server:register_new(Pid2, Id2),
 
+    Id3 = kanaloa_guid_server:new_guid(),
     Pid3 = get_sample_pid(),
-    {ok, Id3} = kanaloa_guid_server:register(Pid3),
+    ok = kanaloa_guid_server:register_new(Pid3, Id3),
 
     {ok, ReceivedPid1} = kanaloa_guid_server:find(Id1),
     {ok, ReceivedPid2} = kanaloa_guid_server:find(Id2),
@@ -70,8 +74,9 @@ find_multiple_existing_test() ->
 remove_on_death_test() ->
     {ok, _Server} = start_link(),
     
+    Id = kanaloa_guid_server:new_guid(),
     Pid = get_sample_pid(),
-    {ok, Id} = kanaloa_guid_server:register(Pid),
+    ok = kanaloa_guid_server:register_new(Pid, Id),
     {ok, ReceivedPid} = kanaloa_guid_server:find(Id),
     ?assertEqual(Pid, ReceivedPid),
     
