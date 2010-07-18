@@ -42,6 +42,15 @@ KanaloaConnection.prototype.Send = function(data) {
     post.Send(data);
 }
 
+/*
+/// Once a ConnectionId is established by the initial request, this class assists in batching outgoing data.
+function KanaloaHttpSendBatcher(server, connectionId, onDebugEvent) {
+    this._server = server;
+    this._connectionId = connectionId;
+    this._outgoing = [];
+}
+*/
+
 /// Wraps XmlHttpRequest to provide lowest-level send and receive functionality.
 /// server -- The full URL to post to.
 /// onReceiveChunk -- On stream-capable browsers, this is fired once per chunk. Otherwise, once per request.
@@ -121,7 +130,21 @@ KanaloaHttpPost.prototype.Connect = function() {
 	    var data = allData.substring(request.lenReceived);
 	    request.lenReceived = allData.length;
 	    if (data.length > 0) {
-		connection._ReportChunk(data);
+		connection._LogDebug("Received additional responseText \"" + data + "\"");
+
+		var responses = [];
+		try {
+		    // The response should always be a JSON array.
+		    responses = JSON.parse(data);
+		}
+		catch (ex) {
+		    connection._LogDebug("Error parsing responseText \"" + data + "\"");
+		}
+		
+		for (var i = 0; i < responses.length; i++) {
+		    var response = responses[i];
+		    connection._ReportChunk(response);
+		}
 	    }
 	}
 	

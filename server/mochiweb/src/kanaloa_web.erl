@@ -104,7 +104,6 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 	    
 	    Headers = [{"ConnectionId", NewConnectionId}],
 	    Resp = Req:ok({ContentType, Headers, chunked}),
-	    Resp:write_chunk(<<"Opened the connection!!!">>),
 	    Connection = kanaloa_connection:new(Resp, self(), CometMethod),
 	    
 	    NewOwner = spawn(fun () ->

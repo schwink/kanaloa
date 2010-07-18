@@ -53,15 +53,6 @@ close() ->
 
 %% Internal API
 
-delimit(List, Delimiter) when is_list(List) ->
-    delimit(List, Delimiter, []).
-delimit([], _, Result) ->
-    lists:reverse(Result);
-delimit([First], Delimiter, Result) ->
-    delimit([], Delimiter, [First | Result]);
-delimit([First | Rest], Delimiter, Result) ->
-    delimit(Rest, Delimiter, [Delimiter | [First | Result]]).
-
 %% @doc Call this recursively to receive the next message in the connection inbox.
 loop(Batch) ->
     % Check batch timeout
@@ -89,7 +80,7 @@ loop(Batch) ->
 			   {send, Message} ->
 			       io:format("Connection received a send\n", []),
 			       Batch#batch{
-				 messages = [Message, Batch#batch.messages]
+				 messages = [Message | Batch#batch.messages]
 				};
 			   {'EXIT', Owner, _Reason} ->
 			       io:format("Connection received an owner exit\n", []),
@@ -138,5 +129,6 @@ send_batch([]) ->
     ok;
 send_batch(Messages) when is_list(Messages) ->
     io:format("Sending batch of ~w messages\n", [length(Messages)]),
-    Data = delimit(Messages, <<",\n">>),
-    MochiResp:write_chunk([<<"[\n">>, Data, <<"]\n">>]).
+    Data = mochijson2:encode(Messages),
+    io:format("Datch is JSON encoded as ~s messages\n", [Data]),
+    MochiResp:write_chunk([<<"\n">>, Data, <<"\n">>]).
