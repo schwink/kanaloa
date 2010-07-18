@@ -33,23 +33,26 @@ function updateRequestMessages() {
 }
 
 function submit() {
-    var server = document.getElementById("server").value;
-    var bodyText = document.getElementById("body").textContent;
-    
-    var connection = new KanaloaConnection(server);
-
-    requests.push(connection);
-    
-    connection.statusMessages = [];
-    connection.OnReceive = function(data) {
-	this.statusMessages.push("Receive: \"" + data + "\"");
-	updateRequestMessages();	
+    if (requests.length == 0) {
+	var server = document.getElementById("server").value;
+	var connection = new KanaloaConnection(server);
+	requests.push(connection);
+	
+	connection.statusMessages = [];
+	connection.OnReceive = function(data) {
+	    this.statusMessages.push("Receive: \"" + data + "\"");
+	    updateRequestMessages();	
+	}
+	connection.OnDebugEvent = function(message) {
+	    this.statusMessages.push("Debug: " + message);
+	    updateRequestMessages();	
+	}
     }
-    connection.OnDebugEvent = function(message) {
-	this.statusMessages.push("Debug: " + message);
-	updateRequestMessages();	
-    }
 
+    var bodyElement = document.getElementById("body");
+    var bodyText = bodyElement.value;
+    
+    var connection = requests[0];
     connection.Send(bodyText);
 
     return false;
