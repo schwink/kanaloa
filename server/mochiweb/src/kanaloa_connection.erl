@@ -33,7 +33,8 @@ open(Owner) when is_pid(Owner) ->
     Batch = #batch {
       owner=Owner,
       check_interval = CheckInterval,
-      count = Count
+      count = Count,
+      timeout = now_ms() + ?BATCH_INTERVAL
      },
     
     loop(Batch).
@@ -81,11 +82,18 @@ loop(Batch) ->
 	    NewBatch = receive
 			   {send, Message} ->
 			       io:format("Connection received a send\n", []),
-			       Batch#batch{
-				 messages = [Message | Batch#batch.messages],
-				 timeout = now_ms() + ?BATCH_INTERVAL,
-				 check_interval = ?BATCH_CHECK_INTERVAL % Longpoll should send.
-				};
+			       case Batch#batch.check_interval of
+				   infinity ->  % Longpoll should send.
+				       Batch#batch{
+					 messages = [Message | Batch#batch.messages],
+					 timeout = now_ms() + ?BATCH_INTERVAL,
+					 check_interval = ?BATCH_CHECK_INTERVAL
+					};
+				   _ ->
+				       Batch#batch{
+					 messages = [Message | Batch#batch.messages]
+					}
+			       end;
 			   {'EXIT', Owner, _Reason} ->
 			       io:format("Connection received an owner exit\n", []),
 			       exit(owner_exit);

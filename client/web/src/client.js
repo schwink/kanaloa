@@ -17,7 +17,7 @@ String.prototype.trim = function () {
 
 /// Top-level user-facing abstraction of all Kanaloa client functionality.
 function KanaloaConnection(server) {
-    this.Settings = new KanaloaHttpSettings(false);
+    this.Settings = new KanaloaHttpSettings();
     this.Server = server;
     this.ConnectionId = null;
     
@@ -44,7 +44,8 @@ KanaloaConnection.prototype._LogDebug = function(message) {
 
 KanaloaConnection.prototype.Connect = function() {
     var connection = this;
-
+    connection._LogDebug("Using stream mode? " + connection.Settings.IsStreamMode);
+    
     function ConnectionOpened(receiverPost) {
 	connection._LogDebug("Opened");
 	
@@ -90,11 +91,11 @@ var /*const*/ KANALOA_WAIT_INCOMING_BASE = 0;
 var /*const*/ KANALOA_WAIT_OUTGOING_BASE = 0;
 
 /// Manages timeouts and other settings for the client.
-function KanaloaHttpSettings(isStreamMode) {
-    this.IsStreamMode = isStreamMode;
+function KanaloaHttpSettings() {
+    this.IsStreamMode = this._IsStreamMode();
     this.ContentType = "application/json";
 
-    if (isStreamMode) {
+    if (this.IsStreamMode) {
 	this.ConnectionSuffix = "?t=stream";
     }
     else {
@@ -102,6 +103,11 @@ function KanaloaHttpSettings(isStreamMode) {
     }
     
     this.Reset();
+}
+
+KanaloaHttpSettings.prototype._IsStreamMode = function() {
+    var userAgent = navigator.userAgent;
+    return (userAgent.indexOf("MSIE") == -1);
 }
 
 KanaloaHttpSettings.prototype.Reset = function() {
