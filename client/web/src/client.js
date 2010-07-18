@@ -1,9 +1,9 @@
 
-const READYSTATE_UNSENT = 0;
-const READYSTATE_OPENED = 1;
-const READYSTATE_HEADERSRECEIVED = 2;
-const READYSTATE_LOADING = 3;
-const READYSTATE_DONE = 4;
+var /*const*/ READYSTATE_UNSENT = 0;
+var /*const*/ READYSTATE_OPENED = 1;
+var /*const*/ READYSTATE_HEADERSRECEIVED = 2;
+var /*const*/ READYSTATE_LOADING = 3;
+var /*const*/ READYSTATE_DONE = 4;
 readyStates = {};
 readyStates[READYSTATE_UNSENT] = "UNSENT";
 readyStates[READYSTATE_OPENED] = "OPENED";
@@ -85,12 +85,12 @@ KanaloaConnection.prototype.Send = function(data) {
     this._sendBatcher.Send(data);
 }
 
-const KANALOA_WAIT_INCOMING_BASE = 0;
-const KANALOA_WAIT_OUTGOING_BASE = 0;
+var /*const*/ KANALOA_WAIT_INCOMING_BASE = 0;
+var /*const*/ KANALOA_WAIT_OUTGOING_BASE = 0;
 
 /// Manages timeouts and other settings for the client.
-function KanaloaHttpSettings(isStream) {
-    this._isStream = isStream;
+function KanaloaHttpSettings(isStreamMode) {
+    this.StreamMode = isStreamMode;
     this.ContentType = "application/json";
 
     if (isStream) {

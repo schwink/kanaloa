@@ -21,7 +21,7 @@
 %% @spec new_guid() -> binary()
 %% @doc Returns a globally unique identifier.
 new_guid() ->
-    Out = os:cmd("uuidgen"),
+    Out = os:cmd("uuid"),
     % Strip the trailing "\n"
     Uuid = string:strip(Out, right, $\n),
     list_to_binary(Uuid).
