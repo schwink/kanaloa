@@ -8,36 +8,19 @@
 
 -export([open/1, send/1, close/0]).
 
--define(BATCH_INTERVAL, 200). % Milliseconds between batches are transmitted.
--define(BATCH_CHECK_INTERVAL, 100). % Milliseconds between checking the interval.
--define(BATCH_COUNT, 1024). % Number of batch intervals to keep the batch open.
+-define(BATCH_INTERVAL, 1000). % Milliseconds between batches are transmitted. Controls how quickly we detect a disconnected client.
+-define(BATCH_CHECK_INTERVAL, 600). % Milliseconds between checking the interval. This should scale with BATCH_INTERVAL.
+-define(BATCH_COUNT, 32). % Number of batch intervals to keep the batch open. Maximum connection time = BATCH_INTERVAL * BATCH_COUNT
 
--record(batch, {messages=[], owner=none, interval=?BATCH_INTERVAL, check_interval=?BATCH_CHECK_INTERVAL, count=?BATCH_COUNT, timeout=none}).
+-record(batch_settings, {owner=none, interval=?BATCH_INTERVAL, check_interval=?BATCH_CHECK_INTERVAL, count=?BATCH_COUNT}).
 
 %% @spec open(Owner::pid()) -> void()
 %% @doc Opens the connection. Control does not return from this call.
 open(Owner) when is_pid(Owner) ->
     process_flag(trap_exit, true),
     link(Owner),
-    
-    % Initialize the batch (see loop/1 below).
-    {CheckInterval, Count} = case CometMethod of
-				 longpoll ->
-				     % Wait indefinitely for the first message, then only send one batch (after this batch is created).
-				     {infinity, 2};
-				 _ ->
-				     {?BATCH_CHECK_INTERVAL, ?BATCH_COUNT}
-			     end,
-    io:format("Using initial CheckInterval of ~w and Count ~w\n", [CheckInterval, Count]),
-    
-    Batch = #batch {
-      owner=Owner,
-      check_interval = CheckInterval,
-      count = Count,
-      timeout = now_ms() + ?BATCH_INTERVAL
-     },
-    
-    loop(Batch).
+    BatchSettings = #batch_settings { owner = Owner },
+    loop(BatchSettings, BatchSettings#batch_settings.count).
 
 %% @spec send(Data::iolist()) -> ok
 %% @doc Sends a message to the client.
@@ -55,74 +38,79 @@ close() ->
 
 %% Internal API
 
-%% @doc Call this recursively to receive the next message in the connection inbox.
-loop(Batch) ->
-    % Check batch timeout
-    Now = now_ms(),
+%% @spec Loops to send batches.
+%% If no outgoing messages are accumulated, we still send empty data to detect if the client is connected.
+loop(BatchSettings, Count) ->
+    % To prevent memory leaks on the client, we do not stream forever, but rather limit the count of batches that we send.
+    % The client will reconnect when this connection is terminated.
     if
-	Now > Batch#batch.timeout ->
-	    % Send the batch
-	    case catch send_batch(Batch#batch.messages) of
-		ok ->
-		    ok;
-		SendError ->
-		    io:format("Error sending a batch: ~w\n", [SendError]),
-		    exit(closed_remote)
-	    end,
-	    case new_batch_state(Batch) of
-		done ->
-		    io:format("Done sending; count ran out\n", []),
-		    exit(count);
-		{ok, NewBatch} ->
-		    loop(NewBatch)
-	    end;
+	Count < 1 ->
+	    io:format("Done sending; count ran out\n", []),
+	    exit(count);
 	true ->
-	    io:format("Listening for the next message, with timeout ~w\n", [Batch#batch.check_interval]),
-	    Owner = Batch#batch.owner,
-	    NewBatch = receive
-			   {send, Message} ->
-			       io:format("Connection received a send\n", []),
-			       case Batch#batch.check_interval of
-				   infinity ->  % Longpoll should send.
-				       Batch#batch{
-					 messages = [Message | Batch#batch.messages],
-					 timeout = now_ms() + ?BATCH_INTERVAL,
-					 check_interval = ?BATCH_CHECK_INTERVAL
-					};
-				   _ ->
-				       Batch#batch{
-					 messages = [Message | Batch#batch.messages]
-					}
-			       end;
-			   {'EXIT', Owner, _Reason} ->
-			       io:format("Connection received an owner exit\n", []),
-			       exit(owner_exit);
-			   close ->
-			       io:format("Connection received a close\n", []),
-			       exit(close_local)
-		       after Batch#batch.check_interval ->
-			       io:format("listen timeout\n", []),
-			       Batch
-		       end,
-	    loop(NewBatch)
+	    ok
+    end,
+    
+    % Accumulate messages for the batch interval.
+    Timeout = now_ms() + BatchSettings#batch_settings.interval,
+    {Status, Messages} = loop_accumulate(BatchSettings, [], Timeout),
+    
+    % Send the batch.
+    case catch send_batch(Messages) of
+	ok ->
+	    ok;
+	SendError ->
+	    io:format("Error sending a batch: ~w\n", [SendError]),
+	    exit(closed_remote)
+    end,
+    
+    NewCount = case CometMethod of
+		   longpoll ->
+		       case Messages of
+			   [] -> Count - 1; % Carry on
+			   _ when Count > 1 -> 1 % Listen for one more batch, then close the connection.
+		       end;
+		   _ ->
+		       Count - 1
+	       end,
+    
+    % Loop if everything is good, otherwise exit.
+    case Status of
+	ok ->
+	    loop(BatchSettings, NewCount);
+	_ ->
+	    exit(Status)
     end.
 
-%% @spec new_batch_state(OldBatch::batch()) -> {ok, batch()} | done
-%% @doc Updates the batch with a new count and timeout.
-new_batch_state(OldBatch) ->
-    Count = OldBatch#batch.count - 1,
+%% @spec loop_accumulate(BatchSettings::batch_settings(), Messages::list(), Timeout::integer()) -> {Status::ok | owner_exit, Messages::list()}
+%% @doc Loops to accumulate messages, for one timeout period.
+loop_accumulate(BatchSettings, Messages, Timeout) when is_list(Messages) andalso is_integer(Timeout)->
+    io:format("Listening for the next message, with timeout ~w\n", [Timeout]),
+    
+    Now = now_ms(),
     if
-	Count > 0 ->
-	    Timeout = now_ms() + ?BATCH_INTERVAL,
-	    NewBatch = OldBatch#batch{
-			 messages = [],
-			 timeout = Timeout,
-			 count = Count,
-			 check_interval = ?BATCH_CHECK_INTERVAL
-			},
-	    {ok, NewBatch};
+	Timeout < Now ->  % Check batch timeout
+	    {ok, Messages};
+	
 	true ->
-	    done
+	    Owner = BatchSettings#batch_settings.owner,
+	    receive
+		{send, Message} ->
+		    io:format("Connection received a send\n", []),
+		    loop_accumulate(BatchSettings, [Message | Messages], Timeout);
+		
+		{'EXIT', Owner, _Reason} ->
+		    io:format("Connection received an owner exit\n", []),
+		    {owner_exit, Messages};
+		
+		close ->
+		    io:format("Connection received a close\n", []),
+		    {close, Messages}
+	    
+	    after BatchSettings#batch_settings.check_interval ->
+		    io:format("listen timeout, better check if the batch Timeout has occurred\n", []),
+		    loop_accumulate(BatchSettings, Messages, Timeout)
+	    end
     end.
 
 %% @spec now_ms() -> integer()
