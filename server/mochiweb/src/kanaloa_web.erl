@@ -134,7 +134,7 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 			 end,
 	    
 	    NewOwner =  spawn(fun () ->
-				      Connection:log("Owner process spawned", []),
+				      io:format("~s : Owner process spawned\n", [NewConnectionId]),
 				      process_flag(trap_exit, true),
 				      Handler(Connection)
 			      end),
