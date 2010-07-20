@@ -41,11 +41,11 @@ function submit() {
 	requests.push(connection);
 	
 	connection.statusMessages = [];
-	connection.OnReceive = function(data) {
+	connection.onReceive = function(data) {
 	    this.statusMessages.push("Receive: \"" + data + "\"");
 	    updateRequestMessages();	
 	}
-	connection.OnDebugEvent = function(message) {
+	connection.onDebugEvent = function(message) {
 	    this.statusMessages.push("Debug: " + message);
 	    updateRequestMessages();	
 	}
@@ -55,7 +55,7 @@ function submit() {
     var bodyText = bodyElement.value;
     
     var connection = requests[0];
-    connection.Send(bodyText);
+    connection.send(bodyText);
 
     return false;
 }
