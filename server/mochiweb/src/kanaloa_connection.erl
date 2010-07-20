@@ -3,10 +3,11 @@
 
 %% @doc Wraps a mochiweb_response to represent a connection to a specific client.
 
--module(kanaloa_connection, [MochiResp, Self, CometMethod]).
+-module(kanaloa_connection, [MochiResp, Self, ConnectionId, CometMethod]).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
 -export([open/1, send/1, close/0]).
+-export([log/2]).
 
 -define(BATCH_INTERVAL, 1000). % Milliseconds between batches are transmitted. Controls how quickly we detect a disconnected client.
 -define(BATCH_CHECK_INTERVAL, 600). % Milliseconds between checking the interval. This should scale with BATCH_INTERVAL.
@@ -36,6 +37,13 @@ close() ->
 
 %% Internal API
 
+%% @spec log(MessageTemplate::string(), MessageParameters::[term()]) -> ok
+%% @doc Submits a connection-specific log message. Use like io:format/2.
+log(Template, Parameters) when is_list(Template) andalso is_list(Parameters) ->
+    Message = io_lib:format(Template, Parameters),
+    io:format("~s : ~s\n", [ConnectionId, Message]),
+    ok.
+
 %% @doc Loops to send batches.
 %% If no outgoing messages are accumulated, we still send empty data to detect if the client is connected.
 loop(BatchSettings, Count) ->
@@ -43,7 +51,7 @@ loop(BatchSettings, Count) ->
     % The client will reconnect when this connection is terminated.
     if
 	Count < 1 ->
-	    io:format("Connection reached batch count.\n", []),
+	    log("Connection reached batch count.", []),
 	    exit(count);
 	true ->
 	    ok
@@ -58,7 +66,7 @@ loop(BatchSettings, Count) ->
 	ok ->
 	    ok;
 	SendError ->
-	    io:format("Error sending a batch: ~w\n", [SendError]),
+	    log("Error sending a batch: ~w", [SendError]),
 	    exit(closed_remote)
     end,
     
@@ -116,10 +124,10 @@ now_ms() ->
 %% @spec send_batch([message()]) -> ok
 %% @doc Sends the batch of messages over the wire as a HTTP chunk, encoded as a JSON array.
 send_batch([]) ->
-    io:format("Sending empty batch to test that the client is still receiving.\n", []),
+    log("Sending empty batch to test that the client is still receiving.", []),
     MochiResp:write_chunk(<<"\n">>), % Send a batch to detect if the connection has closed.
     ok;
 send_batch(Messages) when is_list(Messages) ->
-    io:format("Sending batch of ~w messages\n", [length(Messages)]),
+    log("Sending batch of ~w messages", [length(Messages)]),
     Data = mochijson2:encode(Messages),
     MochiResp:write_chunk(Data).

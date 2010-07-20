@@ -17,14 +17,14 @@ start_link(MochiOptions, KanaOptions) ->
     Loop = fun (Req) ->
                    ?MODULE:loop(Req, Handler, HttpContentType)
            end,
-    io:format("kanaloa_web:start(~w, ~w)\n", [MochiOptions2, KanaOptions]),
+    io:format("kanaloa_web:start_link(~w, ~w)\n", [MochiOptions2, KanaOptions]),
     mochiweb_http:start([{loop, Loop} | MochiOptions2]).
 
 stop() ->
     mochiweb_http:stop(?MODULE).
 
 loop(Req, Handler, ContentType) ->
-    io:format("Got a request!\n", []),
+    %io:format("Got a request!\n", []),
     
     case catch parse_request(Req) of
 	{ok, options} ->
@@ -47,12 +47,12 @@ loop(Req, Handler, ContentType) ->
 dispatch_chunks(_, []) ->
     ok;
 dispatch_chunks(Owner, [Data| Rest]) ->
-    io:format("dispatch_chunks: sending data '~s' to owner ~w\n", [Data, Owner]),
+    %io:format("dispatch_chunks: sending data '~s' to owner ~w\n", [Data, Owner]),
     Owner ! {chunk, Data},
     dispatch_chunks(Owner, Rest).
 
 dispatch_connection(Owner, NewConnection) ->
-    io:format("dispatch_connection: sending new connection to owner ~w\n", [Owner]),
+    %io:format("dispatch_connection: sending new connection to owner ~w\n", [Owner]),
     Owner ! {connection, NewConnection}.
 
 %% @spec get_comet_method(Request::mochiweb_request()) -> 'longpoll' | 'stream' | 'none'
@@ -134,7 +134,7 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 			 end,
 	    
 	    NewOwner =  spawn(fun () ->
-				      io:format("Owner process spawned\n", []),
+				      Connection:log("Owner process spawned", []),
 				      process_flag(trap_exit, true),
 				      Handler(Connection)
 			      end),
@@ -172,23 +172,21 @@ handle_options_request(Req) ->
 new_connection(Req, ContentType, ConnectionId, CometMethod) ->
     Headers = [{"ConnectionId", ConnectionId}],
     Resp = Req:ok({ContentType, Headers, chunked}),
-    kanaloa_connection:new(Resp, self(), CometMethod).
+    kanaloa_connection:new(Resp, self(), ConnectionId, CometMethod).
 
 %% @doc Opens a connection and waits for it to die, reporting the cause of death.
 open_connection(Connection, Owner) ->
     Result = (catch Connection:open(Owner)),
-    io:format("Connection closed with reason ~w\n", [Result]),
+    Connection:log("Connection closed with reason ~w", [Result]),
     ok.
 
 parse_body(BodyText) ->
-    io:format("Parsing body text '~w'\n", [BodyText]),
     Body = case BodyText of
 	       <<"">> ->
 		   [];
 	       _ when is_binary(BodyText) ->
 		   mochijson2:decode(BodyText)
 	   end,
-    io:format("Body text parsed into '~w'\n", [Body]),
     true = is_list(Body),
     {ok, Body}.
 
@@ -200,14 +198,8 @@ parse_kanaloa_options(Options) ->
 		  end,
     
     HandlerFun = case proplists:get_value(handler, Options, undefined) of
-		     undefined -> % TODO: Remove this debugging default
-			 fun (_Connection) ->
-				 io:format("New connection!\n"),
-				 receive
-				     {chunk, _Data} ->
-					 io:format("Received a first chunk!\n")
-				 end
-			 end;
+		     undefined ->
+			 exit(no_handler);
 		     H when is_function(H) ->
 			 H
 		 end,

@@ -18,7 +18,7 @@ ensure_started(App) ->
 handle_connection(orphaned) ->
     receive
 	{connection, NewConnection} ->
-	    io:format("Got a new connection process, un-orphaning the handler.\n", []),
+	    NewConnection:log("Handler is un-orphaned.", []),
 	    handle_connection(NewConnection)
     after 60000 ->
 	    io:format("Didn't get a new connection in time, the handler dies.\n", []),
@@ -27,14 +27,14 @@ handle_connection(orphaned) ->
 handle_connection(Connection) ->
     receive
 	{connection, NewConnection} ->
-	    io:format("Got a new connection process, while the old one is alive.\n", []),
+	    NewConnection:log("Handler replacing live connection.", []),
 	    Connection:close(),
 	    handle_connection(NewConnection);
 	{'EXIT', _Owner, _Reason} ->
-	    io:format("The connection process died; orphaning the handler.\n", []),
+	    Connection:log("Handler orphaned.", []),
 	    handle_connection(orphaned);
 	{chunk, Data} ->
-	    io:format("Received a chunk! '~w'\n", [Data]),
+	    Connection:log("Handler got a chunk! '~w'", [Data]),
 	    Reply = <<"Got your message, which is re-encoded as:">>,
 	    BodyText = mochijson2:encode(Data),
 	    BodyBinary = iolist_to_binary(BodyText),
