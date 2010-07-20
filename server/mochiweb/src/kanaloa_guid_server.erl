@@ -72,7 +72,6 @@ handle_call({register, Id, Process}, _From, State) ->
 		      id_to_process = NewId,
 		      process_to_id = NewProcess
 		     },
-		    %log("New state is ~w", [NewState]),
 		    {reply, ok, NewState};
 		_ ->
 		    log("not registering duplicate Id ~s for process ~w", [Id, Process]),
@@ -113,7 +112,6 @@ handle_info(Info, State) ->
 			       State;
 			   {value, Id} when is_binary(Id) ->
 			       log("Dead process ~w was found with Id ~s in the index", [Pid, Id]),
-			       log("Old state is ~w", [State]),
 			       NewId = gb_trees:delete_any(Id, State#state.id_to_process),
 			       NewProcess = gb_trees:delete_any(Pid, State#state.process_to_id),
 			       #state{ id_to_process = NewId,
@@ -124,7 +122,6 @@ handle_info(Info, State) ->
 		       log("Caught unhandled message: ~w", [Wtf]),
 		       State
 	       end,
-    log("New state is ~w", [NewState]),
     {noreply, NewState}.
 
 %% @hidden
