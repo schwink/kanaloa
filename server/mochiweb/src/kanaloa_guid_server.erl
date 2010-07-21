@@ -63,8 +63,8 @@ handle_call({register, Id, Process}, _From, State) ->
 	none ->
 	    case gb_trees:lookup(Process, State#state.process_to_id) of
 		none ->
-		    io:format("kanaloa_guid_server: registering Id ~s\n", [Id]),
-
+		    log("registering Id ~s Pid ~w", [Id, Process]),
+		    
 		    link(Process),
 		    NewId = gb_trees:insert(Id, Process, State#state.id_to_process),
 		    NewProcess = gb_trees:insert(Process, Id, State#state.process_to_id),
@@ -74,21 +74,21 @@ handle_call({register, Id, Process}, _From, State) ->
 		     },
 		    {reply, ok, NewState};
 		_ ->
-		    io:format("kanaloa_guid_server: not registering duplicate Id ~s\n", [Id]),
+		    log("not registering duplicate Id ~s for process ~w", [Id, Process]),
 		    {reply, duplicate_process, State}
 	    end;
 	_ ->
-	    io:format("kanaloa_guid_server: not registering Id ~s for duplicate process\n", [Id]),
+	    log("not registering Id ~s for duplicate process ~w", [Id, Process]),
 	    {reply, duplicate_id, State}
     end;
 
 handle_call({find, Id}, _From, State) ->
     case gb_trees:lookup(Id, State#state.id_to_process) of
 	none ->
-	    io:format("kanaloa_guid_server: couldn't find Id ~s\n", [Id]),
+	    log("couldn't find Id ~s", [Id]),
 	    {reply, no_id, State};
 	{value, Process} when is_pid(Process) ->
-	    io:format("kanaloa_guid_server: found Id ~s Process ~w\n", [Id, Process]),
+	    log("found Id ~s Process ~w", [Id, Process]),
 	    {reply, {ok, Process}, State}
     end.
 
@@ -103,20 +103,23 @@ handle_cast(_Msg, State) ->
 %% @doc Internal gen_server callback. Do not call directly.
 handle_info(Info, State) ->
     NewState = case Info of
-		   {'EXIT', Pid, _Why} ->
+		   {'EXIT', Pid, Why} ->
+		       log("Process ~w exited with reason ~w", [Pid, Why]),
 		       % Remove the process.
 		       case gb_trees:lookup(Pid, State#state.process_to_id) of
 			   none ->
+			       log("Dead process ~w was not found in the index", [Pid]),
 			       State;
 			   {value, Id} when is_binary(Id) ->
+			       log("Dead process ~w was found with Id ~s in the index", [Pid, Id]),
 			       NewId = gb_trees:delete_any(Id, State#state.id_to_process),
 			       NewProcess = gb_trees:delete_any(Pid, State#state.process_to_id),
-			       #state{ id_to_process = NewProcess,
-				       process_to_id = NewId
+			       #state{ id_to_process = NewId,
+				       process_to_id = NewProcess
 				      }
 		       end;
-		   _Wtf ->
-		       %io:format("Caught unhandled message: ~w\n", [Wtf]),
+		   Wtf ->
+		       log("Caught unhandled message: ~w", [Wtf]),
 		       State
 	       end,
     {noreply, NewState}.
@@ -130,3 +133,10 @@ terminate(_Reason, _State) ->
 %% @doc Internal gen_server callback. Do not call directly.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
+
+%% @spec log(MessageTemplate::string(), MessageParameters::[term()]) -> ok
+%% @doc Submits a log message. Use like io:format/2.
+log(Template, Parameters) when is_list(Template) andalso is_list(Parameters) ->
+    Message = io_lib:format(Template, Parameters),
+    io:format("kanaloa_guid_server : ~s\n", [Message]),
+    ok.

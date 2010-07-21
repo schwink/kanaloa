@@ -94,6 +94,49 @@ remove_on_death_test() ->
     
     stop().
 
+remove_single_on_death_test() ->
+    {ok, _Server} = start_link(),
+    
+    Id1 = kanaloa_guid_server:new_guid(),
+    Pid1 = get_sample_pid(),
+    ok = kanaloa_guid_server:register_new(Pid1, Id1),
+    {ok, ReceivedPid1} = kanaloa_guid_server:find(Id1),
+    ?assertEqual(Pid1, ReceivedPid1),
+
+    Id2 = kanaloa_guid_server:new_guid(),
+    Pid2 = get_sample_pid(),
+    ok = kanaloa_guid_server:register_new(Pid2, Id2),
+    {ok, ReceivedPid2} = kanaloa_guid_server:find(Id2),
+    ?assertEqual(Pid2, ReceivedPid2),
+
+    Id3 = kanaloa_guid_server:new_guid(),
+    Pid3 = get_sample_pid(),
+    ok = kanaloa_guid_server:register_new(Pid3, Id3),
+    {ok, ReceivedPid3} = kanaloa_guid_server:find(Id3),
+    ?assertEqual(Pid3, ReceivedPid3),
+    
+    % Kill the process by sending it a message
+    process_flag(trap_exit, true),
+    link(Pid2),
+    exit(Pid2, kill),
+    receive
+	{'EXIT', Pid2, _} -> ok;
+	M -> io:format("received ~w\n", [M])
+    end,
+    
+    % Verify that only process 2 was removed.
+    
+    {ok, ReceivedPid1_2} = kanaloa_guid_server:find(Id1),
+    ?assertEqual(Pid1, ReceivedPid1_2),
+
+    Result = kanaloa_guid_server:find(Id2),
+    ?assertEqual(no_id, Result),
+
+    {ok, ReceivedPid3_2} = kanaloa_guid_server:find(Id3),
+    ?assertEqual(Pid3, ReceivedPid3_2),
+    
+    stop().
+
 %% @spec get_sample_pid() -> pid()
 %% @doc Returns a pid that won't exit for a while. Useful for unimportant fake clients.
 get_sample_pid() ->
