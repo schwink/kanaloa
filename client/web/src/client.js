@@ -13,7 +13,7 @@ readyStates[READYSTATE_DONE] = "DONE";
 
 String.prototype.trim = function () {
     return this.replace(/^\s*/, "").replace(/\s*$/, "");
-}
+};
 
 /// Top-level user-facing abstraction of all Kanaloa client functionality.
 /// Parameters:
@@ -40,19 +40,19 @@ KanaloaConnection.prototype._reportReceive = function(data) {
     if (this.onReceive) {
 	this.onReceive(data);
     }
-}
+};
 
 KanaloaConnection.prototype._reportConnectionLost = function() {
     if (this.onConnectionLost) {
 	this.onConnectionLost();
     }
-}
+};
 
 KanaloaConnection.prototype._logDebug = function(message) {
     if (this.onDebugEvent) {
 	this.onDebugEvent("Connection: " + message);
     }
-}
+};
 
 KanaloaConnection.prototype._bumpIncoming = function(statusCode) {
     if (statusCode == 410) {
@@ -60,12 +60,12 @@ KanaloaConnection.prototype._bumpIncoming = function(statusCode) {
 	this.connectionId = null;
 	this._reportConnectionLost();
     }
-}
+};
 
 KanaloaConnection.prototype._bumpOutgoing = function(statusCode) {
     // Same thing.
     this._bumpIncoming(statusCode);
-}
+};
 
 KanaloaConnection.prototype.connect = function() {
     var connection = this;
@@ -100,7 +100,7 @@ KanaloaConnection.prototype.connect = function() {
     this._receiver = receiver;
     
     receiver.send("");
-}
+};
 
 KanaloaConnection.prototype.send = function(data) {
     if (this._sendBatcher == null) {
@@ -111,7 +111,7 @@ KanaloaConnection.prototype.send = function(data) {
     }
 
     this._sendBatcher.send(data);
-}
+};
 
 var /*const*/ KANALOA_WAIT_INCOMING_BASE = 10;
 var /*const*/ KANALOA_WAIT_OUTGOING_BASE = 10;
@@ -134,12 +134,12 @@ function _KanaloaHttpSettings() {
 _KanaloaHttpSettings.prototype._isStreamMode = function() {
     var userAgent = navigator.userAgent;
     return (userAgent.indexOf("MSIE") == -1);
-}
+};
 
 _KanaloaHttpSettings.prototype.reset = function() {
     this.incomingWait = KANALOA_WAIT_INCOMING_BASE;
     this.outgoingWait = KANALOA_WAIT_OUTGOING_BASE;
-}
+};
 
 _KanaloaHttpSettings.prototype.bumpIncoming = function(statusCode) {
     if (statusCode != 200) {
@@ -150,7 +150,7 @@ _KanaloaHttpSettings.prototype.bumpIncoming = function(statusCode) {
 	    this.incomingWait *= 2;
 	}
     }
-}
+};
 
 _KanaloaHttpSettings.prototype.bumpOutgoing = function(statusCode) {
     if (statusCode != 200) {
@@ -161,7 +161,7 @@ _KanaloaHttpSettings.prototype.bumpOutgoing = function(statusCode) {
 	    this.outgoingWait *= 2;
 	}
     }
-}
+};
 
 /// Once a ConnectionId is established by the initial request, this class batches outgoing data.
 function _KanaloaHttpSendBatcher(connection, onDebugEvent) {
@@ -176,7 +176,7 @@ _KanaloaHttpSendBatcher.prototype._logDebug = function(message) {
     if (this._onDebugEvent) {
 	this._onDebugEvent("HttpSendBatcher: " + message);
     }
-}
+};
 
 _KanaloaHttpSendBatcher.prototype.send = function(data) {
     if (data) {
@@ -185,7 +185,7 @@ _KanaloaHttpSendBatcher.prototype.send = function(data) {
     }
     
     this._sendPost();
-}
+};
 
 _KanaloaHttpSendBatcher.prototype._sendPost = function() {
     if (this._outgoing.length == 0) {
@@ -240,7 +240,7 @@ _KanaloaHttpSendBatcher.prototype._sendPost = function() {
     this._logDebug("Sending batch \"" + textOutgoing + "\"");
     this._post.send(textOutgoing);
     this._post.sentCount = this._outgoing.length;
-}
+};
 
 /// Wraps XmlHttpRequest to provide lowest-level send and receive functionality.
 /// server -- The full URL to post to.
@@ -267,25 +267,25 @@ _KanaloaHttpPost.prototype._reportOpen = function() {
     if (this._onOpen) {
 	this._onOpen();
     }
-}
+};
 
 _KanaloaHttpPost.prototype._reportChunk = function(data) {
     if (this._onReceiveChunk) {
 	this._onReceiveChunk(data);
     }
-}
+};
 
 _KanaloaHttpPost.prototype._reportClose = function(httpStatusCode) {
     if (this._onClose) {
 	this._onClose(httpStatusCode);
     }
-}
+};
 
 _KanaloaHttpPost.prototype._logDebug = function(message) {
     if (this._onDebugEvent) {
 	this._onDebugEvent("HttpPost: " + message);
     }
-}
+};
 
 _KanaloaHttpPost.prototype.isActive = function() {
     if (this._request && (this._request.readyState != READYSTATE_UNSENT || this._request.readyState != READYSTATE_DONE)) {
@@ -293,7 +293,7 @@ _KanaloaHttpPost.prototype.isActive = function() {
     }
 
     return true;
-}
+};
 
 _KanaloaHttpPost.prototype.connect = function() {
     if (this._request) {
@@ -378,9 +378,9 @@ _KanaloaHttpPost.prototype.connect = function() {
     }
     
     return true;
-}
+};
 
 _KanaloaHttpPost.prototype.send = function(data) {
     this.connect();
     this._request.send(data);
-}
+};
