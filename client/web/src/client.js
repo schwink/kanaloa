@@ -1,18 +1,20 @@
 
+(function() {
+
 var /*const*/ READYSTATE_UNSENT = 0;
 var /*const*/ READYSTATE_OPENED = 1;
 var /*const*/ READYSTATE_HEADERSRECEIVED = 2;
 var /*const*/ READYSTATE_LOADING = 3;
 var /*const*/ READYSTATE_DONE = 4;
-readyStates = {};
+var readyStates = {};
 readyStates[READYSTATE_UNSENT] = "UNSENT";
 readyStates[READYSTATE_OPENED] = "OPENED";
 readyStates[READYSTATE_HEADERSRECEIVED] = "HEADERS_RECEIVED";
 readyStates[READYSTATE_LOADING] = "LOADING";
 readyStates[READYSTATE_DONE] = "DONE";
 
-String.prototype.trim = function () {
-    return this.replace(/^\s*/, "").replace(/\s*$/, "");
+function stringTrim(str) {
+    return str.replace(/^\s*/, "").replace(/\s*$/, "");
 };
 
 /// Top-level user-facing abstraction of all Kanaloa client functionality.
@@ -21,7 +23,7 @@ String.prototype.trim = function () {
 /// Properties:
 /// OnReceive -- Invoked when a message is received from the server. function(data)
 /// OnConnectionLost -- Invoked when an application-level timeout occurs. The server process that is handling this client has died. function()
-function KanaloaConnection(server) {
+this.KanaloaConnection = function(server) {
     this.settings = new _KanaloaHttpSettings();
     this.server = server;
     this.connectionId = null;
@@ -342,7 +344,7 @@ _KanaloaHttpPost.prototype.connect = function() {
 	    readyState == READYSTATE_DONE) {
 	    var allData = request.responseText;
 	    var data = allData.substring(request.lenReceived);
-	    data = data.trim();
+	    data = stringTrim(data);
 	    request.lenReceived = allData.length;
 	    if (data.length > 0) {
 		connection._logDebug("Received additional responseText \"" + data + "\"");
@@ -384,3 +386,5 @@ _KanaloaHttpPost.prototype.send = function(data) {
     this.connect();
     this._request.send(data);
 };
+
+})();
