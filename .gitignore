@@ -1,0 +1,11 @@
+# Packages
+*.deb
+*.changes
+
+# Build output
+ebin/
+tbin/
+doc/
+
+# Editor temporary files
+*~
