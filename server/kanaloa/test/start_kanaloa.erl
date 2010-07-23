@@ -3,17 +3,9 @@
 
 %% @doc TEMPLATE.
 
--module(kanaloa).
+-module(start_kanaloa).
 -author('Stephen Schwink <kanaloa@schwink.net>').
--export([start/0, stop/0]).
-
-ensure_started(App) ->
-    case application:start(App) of
-	ok ->
-	    ok;
-        {error, {already_started, App}} ->
-	    ok
-    end.
+-export([start/0]).
 
 handle_connection(orphaned) ->
     receive
@@ -45,20 +37,16 @@ handle_connection(Connection) ->
 %% @spec start() -> ok
 %% @doc Start the kanaloa mochiweb server.
 start() ->
+    MochiwebOptions = [],
+    
     HandlerFun = fun (Connection) ->
 			 handle_connection(Connection)
 		 end,
+    KanaloaOptions = [{handler, HandlerFun}],
     
-    ensure_started(crypto),
-    Result = kanaloa_sup:start_link([], [{handler, HandlerFun}]),
-    io:format("start result: ~w\n", [Result]),
-
+    {ok, _Pid} = kanaloa:start_link(MochiwebOptions, KanaloaOptions),
+    
     receive
 	exit -> % Apparently this function, passed to erl with "-s", isn't supposed to return.
 	    ok
     end.
-
-%% @spec stop() -> ok
-%% @doc Stop the kanaloa mochiweb server.
-stop() ->
-    ok.
