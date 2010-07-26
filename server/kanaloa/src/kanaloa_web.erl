@@ -90,11 +90,9 @@ get_mochiweb_options(Options) ->
     Options2 = proplists:delete(loop, Options1), % Ignore the loop property.
     
     Options3 = set_default_option(max, Options2, 1048576), % Set a high default for max number of connections.
-    Options4 = set_default_option(ip, Options3, "0.0.0.0"),
-    Options5 = set_default_option(port, Options4, 8000),
     
-    Options6 = replace_option(name, Options5, ?MODULE),
-    Options6.
+    Options4 = replace_option(name, Options3, ?MODULE),
+    Options4.
 
 %% @spec get_path(Request::mochiweb_request()) -> string()
 %% @doc Gets the path that the request was made to.

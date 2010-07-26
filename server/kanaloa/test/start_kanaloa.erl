@@ -37,7 +37,7 @@ handle_connection(Connection) ->
 %% @spec start() -> ok
 %% @doc Start the kanaloa mochiweb server.
 start() ->
-    MochiwebOptions = [],
+    MochiwebOptions = [{port, 8001}],
     
     HandlerFun = fun (Connection) ->
 			 handle_connection(Connection)
