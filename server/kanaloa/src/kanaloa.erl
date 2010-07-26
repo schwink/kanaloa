@@ -17,7 +17,6 @@ ensure_started(App) ->
 
 %% @spec start_link(MochiOptions, KanaloaOptions) -> {ok, Pid::pid()}
 %% @doc Start a local instance of the kanaloa mochiweb server.
-%% Pass it a fun(Connection) to handler new connections.
 start_link(MochiOptions, KanaloaOptions) when is_list(MochiOptions) andalso is_list(KanaloaOptions) ->
     ensure_started(crypto),
     

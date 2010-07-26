@@ -1,6 +1,7 @@
 include ../support/include.mk
 
-all: $(EBIN_FILES)
+all: $(TBIN_FILES)
 
 clean:
-	rm -rf $(EBIN_FILES)
+	rm -rf ../tbin
+	rm -rf ../_test

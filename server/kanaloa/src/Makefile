@@ -10,7 +10,8 @@ debug:
 	$(MAKE) DEBUG=-DDEBUG
 
 clean:
-	rm -rf $(EBIN_FILES)
+	rm -rf ../ebin
+	rm -rf ../doc
 
 edoc:
 	$(ERL) -noshell -pa ../ebin \

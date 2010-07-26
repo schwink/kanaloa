@@ -7,7 +7,7 @@ DEST_DOC=$(DESTDIR)/usr/share/doc/$(NAME)/html
 
 all: ebin/
 	(cd src;$(MAKE) all)
-	(cd test;$(MAKE) DEBUG=-DDEBUG)
+	(cd test;$(MAKE) all)
 
 force:
 
@@ -18,11 +18,8 @@ test: force
 	(cd src;$(MAKE) test)
 
 clean:
-	#(cd src;$(MAKE) clean)
-	#(cd test;$(MAKE) clean)
-	rm -rf ebin
-	rm -rf doc
-	rm -rf _test
+	(cd src;$(MAKE) clean)
+	(cd test;$(MAKE) clean)
 
 clean_plt:
 	(cd src;$(MAKE) clean_plt)
@@ -35,8 +32,8 @@ ebin/:
 
 install:
 	mkdir -p $(DEST_EBIN) || true
-	mkdir -p $(DEST_INCLUDE) || true
 	cp ebin/* $(DEST_EBIN)
+	mkdir -p $(DEST_INCLUDE) || true
 	cp src/*.hrl $(DEST_INCLUDE) || true
 	mkdir -p $(DEST_DOC) || true
 	cp doc/* $(DEST_DOC) || true
