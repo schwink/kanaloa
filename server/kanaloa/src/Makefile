@@ -20,7 +20,7 @@ edoc:
 
 test: $(EBIN_FILES)
 	mkdir -p $(TEST_DIR);
-	@../support/run_tests.escript $(EBIN_DIR) | tee $(TEST_DIR)/test.log
+	@../support/run_tests.escript $(EBIN_DIR) $(TBIN_DIR) | tee $(TEST_DIR)/test.log
 
 $(TEST_PLT):
 	mkdir -p $(TEST_DIR)
