@@ -17,8 +17,10 @@ start_link(MochiOptions, KanaOptions) ->
     Loop = fun (Req) ->
                    ?MODULE:loop(Req, Handler, HttpContentType)
            end,
-    io:format("kanaloa_web:start_link(~w, ~w)\n", [MochiOptions2, KanaOptions]),
-    mochiweb_http:start([{loop, Loop} | MochiOptions2]).
+    
+    Result = mochiweb_http:start([{loop, Loop} | MochiOptions2]),
+    io:format("mochiweb_http:start result: ~w\n", [Result]),
+    Result.
 
 stop() ->
     mochiweb_http:stop(?MODULE).
