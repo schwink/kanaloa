@@ -20,9 +20,11 @@ function stringTrim(str) {
 /// Top-level user-facing abstraction of all Kanaloa client functionality.
 /// Parameters:
 /// server -- The url of the Kanaloa service to connect to.
+/// Methods:
+/// send(data) -- Sends a JavaScript term to the server.
 /// Properties:
-/// OnReceive -- Invoked when a message is received from the server. function(data)
-/// OnConnectionLost -- Invoked when an application-level timeout occurs. The server process that is handling this client has died. function()
+/// onReceive -- Invoked when a message is received from the server. function(data)
+/// onConnectionLost -- Invoked when an application-level timeout occurs. The server process that is handling this client has died. function()
 this.KanaloaConnection = function(server) {
     this.settings = new _KanaloaHttpSettings();
     this.server = server;
@@ -36,7 +38,7 @@ this.KanaloaConnection = function(server) {
     this.onDebugEvent = function(message) { };
     
     this.connect();
-}
+};
 
 KanaloaConnection.prototype._reportReceive = function(data) {
     if (this.onReceive) {

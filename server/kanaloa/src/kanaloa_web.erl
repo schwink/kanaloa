@@ -6,26 +6,25 @@
 -module(kanaloa_web).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
--export([start_link/2, stop/0, loop/3]).
+-include("../include/kanaloa.hrl").
+
+-export([start_link/2, stop/0, loop/2]).
 
 %% External API
 
-start_link(MochiOptions, KanaOptions) ->
-    MochiOptions2 = get_mochiweb_options(MochiOptions),
-    {ok, HttpContentType, Handler} = parse_kanaloa_options(KanaOptions),
-    
+start_link(MochiwebOptions, Settings) ->
     Loop = fun (Req) ->
-                   ?MODULE:loop(Req, Handler, HttpContentType)
+                   ?MODULE:loop(Req, Settings)
            end,
     
-    Result = mochiweb_http:start([{loop, Loop} | MochiOptions2]),
+    Result = mochiweb_http:start([{loop, Loop} | MochiwebOptions]),
     io:format("mochiweb_http:start result: ~w\n", [Result]),
     Result.
 
 stop() ->
     mochiweb_http:stop(?MODULE).
 
-loop(Req, Handler, ContentType) ->
+loop(Req, Settings) ->
     %io:format("Got a request!\n", []),
     
     case catch parse_request(Req) of
@@ -34,7 +33,7 @@ loop(Req, Handler, ContentType) ->
 	{ok, CometMethod, ConnectionId, Body} ->
 	    case catch parse_body(Body) of
 		{ok, DataSegments} ->
-		    handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, DataSegments);
+		    handle_connection_request(Req, Settings, CometMethod, ConnectionId, DataSegments);
 		Error ->
 		    io:format("Body parse error: ~w\n", [Error]),
 		    Req:respond({400, [], []}) % Bad request
@@ -86,23 +85,13 @@ get_connection_owner(ConnectionId) ->
 	    end
     end.
 
-%% @doc We need to supervise the options passed to mochiweb.
-get_mochiweb_options(Options) ->
-    Options1 = proplists:delete(docroot, Options), % Must unset the docroot property.
-    Options2 = proplists:delete(loop, Options1), % Ignore the loop property.
-    
-    Options3 = set_default_option(max, Options2, 1048576), % Set a high default for max number of connections.
-    
-    Options4 = replace_option(name, Options3, ?MODULE),
-    Options4.
-
 %% @spec get_path(Request::mochiweb_request()) -> string()
 %% @doc Gets the path that the request was made to.
 get_path(Req) ->
     FullPath = Req:get(path),
     FullPath.
 
-handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, Data) ->
+handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
     IsDownloadRequest = (CometMethod /= none),
     case get_connection_owner(ConnectionId) of
 	expired -> % The owner has died. Tell the client to reconnect.
@@ -111,10 +100,10 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 	
 	{ok, ExistingOwner} when not IsDownloadRequest -> % An upload request is posting data.
 	    dispatch_chunks(ExistingOwner, Data),
-	    Req:ok({ContentType, [], []});
+	    Req:ok({Settings#kanaloa_settings.http_content_type, [], []});
 	
 	{ok, ExistingOwner} when IsDownloadRequest -> % A download request is attempting to reconnect.
-	    Connection = new_connection(Req, ContentType, ConnectionId, CometMethod),
+	    Connection = new_connection(Req, Settings, ConnectionId, CometMethod),
 	    dispatch_connection(ExistingOwner, Connection),
 	    
 	    dispatch_chunks(ExistingOwner, Data),
@@ -127,12 +116,13 @@ handle_connection_request(Req, ContentType, Handler, CometMethod, ConnectionId, 
 	    Connection = case CometMethod of
 			     longpoll -> % For new longpoll, just send back the ConnectionId so the client can finish initializing.
 				 Headers = [{"ConnectionId", NewConnectionId}],
-				 Req:ok({ContentType, Headers, []}),
+				 Req:ok({Settings#kanaloa_settings.http_content_type, Headers, []}),
 				 orphaned;
 			     _ ->
-				 new_connection(Req, ContentType, NewConnectionId, CometMethod)
+				 new_connection(Req, Settings, NewConnectionId, CometMethod)
 			 end,
 	    
+	    Handler = Settings#kanaloa_settings.handler,
 	    NewOwner =  spawn(fun () ->
 				      io:format("~s : Owner process spawned\n", [NewConnectionId]),
 				      process_flag(trap_exit, true),
@@ -169,10 +159,11 @@ handle_options_request(Req) ->
 	      ],
     Req:respond({200, Headers, []}).
 
-new_connection(Req, ContentType, ConnectionId, CometMethod) ->
+new_connection(Req, Settings, ConnectionId, CometMethod) ->
     Headers = [{"ConnectionId", ConnectionId}],
+    ContentType = Settings#kanaloa_settings.http_content_type,
     Resp = Req:ok({ContentType, Headers, chunked}),
-    kanaloa_connection:new(Resp, self(), ConnectionId, CometMethod).
+    kanaloa_connection:new(Resp, self(), Settings, ConnectionId, CometMethod).
 
 %% @doc Opens a connection and waits for it to die, reporting the cause of death.
 open_connection(Connection, Owner) ->
@@ -189,22 +180,6 @@ parse_body(BodyText) ->
 	   end,
     true = is_list(Body),
     {ok, Body}.
-
-%% @doc Parse out the required and optional options.
-parse_kanaloa_options(Options) ->
-    ContentType = case proplists:get_value(http_content_type, Options, <<"application/json">>) of
-		      C when is_binary(C) ->
-			  C
-		  end,
-    
-    HandlerFun = case proplists:get_value(handler, Options, undefined) of
-		     undefined ->
-			 exit(no_handler);
-		     H when is_function(H) ->
-			 H
-		 end,
-    
-    {ok, ContentType, HandlerFun}.
 
 %% @doc Parses the comet method out of the query string, throwing if anything else is encountered.
 parse_query_string([]) ->
@@ -232,19 +207,6 @@ parse_request(Req) ->
 	    {ok, CometMethod, ConnectionId, Body};
 	'OPTIONS' ->
 	    {ok, options}
-    end.
-
-%% @doc Replaces the specified entry in a proplist.
-replace_option(Key, Options, Value) ->
-    [{Key, Value} | proplists:delete(Key, Options)].
-
-%% @doc If the specified option is not present in the proplist, set it to the specified value.
-set_default_option(Key, Options, Default) ->
-    case proplists:get_value(Key, Options, undefined) of
-	undefined ->
-	    replace_option(Key, Options, Default);
-	_ ->
-	    Options
     end.
 
 %%

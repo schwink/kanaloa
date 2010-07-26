@@ -14,10 +14,10 @@
 %% supervisor callbacks
 -export([init/1]).
 
-%% @spec start_link(MochiConfig, KanaConfig) -> ServerRet
+%% @spec start_link(MochiConfig, Settings) -> ServerRet
 %% @doc API for starting the supervisor.
-start_link(MochiConfig, KanaConfig) ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, {MochiConfig, KanaConfig}).
+start_link(MochiConfig, Settings) ->
+    supervisor:start_link({local, ?MODULE}, ?MODULE, {MochiConfig, Settings}).
 
 %% @spec upgrade() -> ok
 %% @doc Add processes if necessary.
@@ -40,13 +40,12 @@ upgrade() ->
 
 %% @spec init([]) -> SupervisorTree
 %% @doc supervisor callback.
-init({MochiConfig, KanaConfig}) ->
-    io:format("kanaloa_sup:init/2\n"),
+init({MochiConfig, Settings}) ->
     Guid = {kanaloa_guid_server,
 	    {kanaloa_guid_server, start_link, []},
 	    permanent, 5000, worker, dynamic},
     Web = {kanaloa_web,
-           {kanaloa_web, start_link, [MochiConfig, KanaConfig]},
+           {kanaloa_web, start_link, [MochiConfig, Settings]},
            permanent, 5000, worker, dynamic},
     
     Processes = [Guid, Web],

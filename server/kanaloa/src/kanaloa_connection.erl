@@ -3,25 +3,20 @@
 
 %% @doc Wraps a mochiweb_response to represent a connection to a specific client.
 
--module(kanaloa_connection, [MochiResp, Self, ConnectionId, CometMethod]).
+-module(kanaloa_connection, [MochiResp, Self, Settings, ConnectionId, CometMethod]).
 -author('Stephen Schwink <kanaloa@schwink.net>').
+
+-include("../include/kanaloa.hrl").
 
 -export([open/1, send/1, close/0]).
 -export([log/2]).
-
--define(BATCH_INTERVAL, 1000). % Milliseconds between batches are transmitted. Controls how quickly we detect a disconnected client.
--define(BATCH_CHECK_INTERVAL, 600). % Milliseconds between checking the interval. This should scale with BATCH_INTERVAL.
--define(BATCH_COUNT, 32). % Number of batch intervals to keep the batch open. Maximum connection time = BATCH_INTERVAL * BATCH_COUNT
-
--record(batch_settings, {owner=none, interval=?BATCH_INTERVAL, check_interval=?BATCH_CHECK_INTERVAL, count=?BATCH_COUNT}).
 
 %% @spec open(Owner::pid()) -> void()
 %% @doc Opens the connection. Control does not return from this call.
 open(Owner) when is_pid(Owner) ->
     process_flag(trap_exit, true),
     link(Owner),
-    BatchSettings = #batch_settings { owner = Owner },
-    loop(BatchSettings, BatchSettings#batch_settings.count).
+    loop(Owner, Settings#kanaloa_settings.batch_count).
 
 %% @spec send(Data::iolist()) -> ok
 %% @doc Sends a message to the client.
@@ -46,7 +41,7 @@ log(Template, Parameters) when is_list(Template) andalso is_list(Parameters) ->
 
 %% @doc Loops to send batches.
 %% If no outgoing messages are accumulated, we still send empty data to detect if the client is connected.
-loop(BatchSettings, Count) ->
+loop(Owner, Count) ->
     % To prevent memory leaks on the client, we do not stream forever, but rather limit the count of batches that we send.
     % The client will reconnect when this connection is terminated.
     if
@@ -58,8 +53,8 @@ loop(BatchSettings, Count) ->
     end,
     
     % Accumulate messages for the batch interval.
-    Timeout = now_ms() + BatchSettings#batch_settings.interval,
-    {Status, Messages} = loop_accumulate(BatchSettings, [], Timeout),
+    Timeout = now_ms() + Settings#kanaloa_settings.batch_interval,
+    {Status, Messages} = loop_accumulate(Owner, [], Timeout),
     
     % Send the batch.
     case catch send_batch(Messages) of
@@ -83,24 +78,23 @@ loop(BatchSettings, Count) ->
     % Loop if everything is good, otherwise exit.
     case Status of
 	ok ->
-	    loop(BatchSettings, NewCount);
+	    loop(Owner, NewCount);
 	_ ->
 	    exit(Status)
     end.
 
 %% @spec loop_accumulate(BatchSettings::batch_settings(), Messages::list(), Timeout::integer()) -> {Status::ok | owner_exit, Messages::list()}
 %% @doc Loops to accumulate messages, for one timeout period.
-loop_accumulate(BatchSettings, Messages, Timeout) when is_list(Messages) andalso is_integer(Timeout)->
+loop_accumulate(Owner, Messages, Timeout) when is_list(Messages) andalso is_integer(Timeout)->
     Now = now_ms(),
     if
 	Timeout < Now ->  % Check batch timeout
 	    {ok, Messages};
 	
 	true ->
-	    Owner = BatchSettings#batch_settings.owner,
 	    receive
 		{send, Message} ->
-		    loop_accumulate(BatchSettings, [Message | Messages], Timeout);
+		    loop_accumulate(Owner, [Message | Messages], Timeout);
 		
 		{'EXIT', Owner, _Reason} ->
 		    {owner_exit, Messages};
@@ -108,8 +102,8 @@ loop_accumulate(BatchSettings, Messages, Timeout) when is_list(Messages) andalso
 		close ->
 		    {close, Messages}
 	    
-	    after BatchSettings#batch_settings.check_interval ->
-		    loop_accumulate(BatchSettings, Messages, Timeout)
+	    after Settings#kanaloa_settings.batch_check_interval ->
+		    loop_accumulate(Owner, Messages, Timeout)
 	    end
     end.
 
