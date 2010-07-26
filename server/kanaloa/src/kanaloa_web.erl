@@ -13,6 +13,8 @@
 %% External API
 
 start_link(MochiwebOptions, Settings) ->
+    io:format("Kanaloa settings is ~w\n", [Settings]),
+    
     Loop = fun (Req) ->
                    ?MODULE:loop(Req, Settings)
            end,
@@ -24,14 +26,12 @@ start_link(MochiwebOptions, Settings) ->
 stop() ->
     mochiweb_http:stop(?MODULE).
 
-loop(Req, Settings) ->
-    %io:format("Got a request!\n", []),
-    
+loop(Req, Settings) when is_record(Settings, kanaloa_settings) ->
     case catch parse_request(Req) of
 	{ok, options} ->
 	    handle_options_request(Req);
 	{ok, CometMethod, ConnectionId, Body} ->
-	    case catch parse_body(Body) of
+	    case catch parse_body(Body, Settings) of
 		{ok, DataSegments} ->
 		    handle_connection_request(Req, Settings, CometMethod, ConnectionId, DataSegments);
 		Error ->
@@ -45,15 +45,13 @@ loop(Req, Settings) ->
 
 %% Internal API
 
-dispatch_chunks(_, []) ->
+dispatch_chunks(_, [], _) ->
     ok;
-dispatch_chunks(Owner, [Data| Rest]) ->
-    %io:format("dispatch_chunks: sending data '~s' to owner ~w\n", [Data, Owner]),
-    Owner ! {chunk, Data},
-    dispatch_chunks(Owner, Rest).
+dispatch_chunks(Owner, [Data| Rest], Kind) ->
+    Owner ! {Kind, Data},
+    dispatch_chunks(Owner, Rest, Kind).
 
 dispatch_connection(Owner, NewConnection) ->
-    %io:format("dispatch_connection: sending new connection to owner ~w\n", [Owner]),
     Owner ! {connection, NewConnection}.
 
 %% @spec get_comet_method(Request::mochiweb_request()) -> 'longpoll' | 'stream' | 'none'
@@ -93,20 +91,24 @@ get_path(Req) ->
 
 handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
     IsDownloadRequest = (CometMethod /= none),
+    ChunkKind = case Settings#kanaloa_settings.parse_jsonrpc of
+		    true -> json;
+		    false -> chunk
+		end,
     case get_connection_owner(ConnectionId) of
 	expired -> % The owner has died. Tell the client to reconnect.
 	    Req:respond({410, [], []}), % Gone
 	    exit(bad_connection_owner);
 	
 	{ok, ExistingOwner} when not IsDownloadRequest -> % An upload request is posting data.
-	    dispatch_chunks(ExistingOwner, Data),
+	    dispatch_chunks(ExistingOwner, Data, ChunkKind),
 	    Req:ok({Settings#kanaloa_settings.http_content_type, [], []});
 	
 	{ok, ExistingOwner} when IsDownloadRequest -> % A download request is attempting to reconnect.
 	    Connection = new_connection(Req, Settings, ConnectionId, CometMethod),
 	    dispatch_connection(ExistingOwner, Connection),
 	    
-	    dispatch_chunks(ExistingOwner, Data),
+	    dispatch_chunks(ExistingOwner, Data, ChunkKind),
 
 	    open_connection(Connection, ExistingOwner);
 	
@@ -130,7 +132,7 @@ handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
 			      end),
 	    ok = kanaloa_guid_server:register_new(NewOwner, NewConnectionId),
 	    
-	    dispatch_chunks(NewOwner, Data),
+	    dispatch_chunks(NewOwner, Data, ChunkKind),
 	    
 	    case Connection of
 		orphaned -> ok;
@@ -171,14 +173,25 @@ open_connection(Connection, Owner) ->
     Connection:log("Connection closed with reason ~w", [Result]),
     ok.
 
-parse_body(BodyText) ->
-    Body = case BodyText of
+parse_body(BodyText, Settings) when is_record(Settings, kanaloa_settings) ->
+    BodyJson = case BodyText of
 	       <<"">> ->
 		   [];
 	       _ when is_binary(BodyText) ->
 		   mochijson2:decode(BodyText)
 	   end,
-    true = is_list(Body),
+    true = is_list(BodyJson),
+    
+    Body = case Settings#kanaloa_settings.parse_jsonrpc of
+	       true ->
+		   lists:map(fun (Item) ->
+				     kanaloa_rpc:parse(Item)
+			     end, BodyJson);
+	       _ ->
+		   BodyJson
+	   end,
+    true = is_list(BodyJson),
+    
     {ok, Body}.
 
 %% @doc Parses the comet method out of the query string, throwing if anything else is encountered.

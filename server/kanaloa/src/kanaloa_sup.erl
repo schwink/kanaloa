@@ -8,6 +8,8 @@
 
 -behaviour(supervisor).
 
+-include("../include/kanaloa.hrl").
+
 %% External exports
 -export([start_link/2, upgrade/0]).
 
@@ -16,7 +18,7 @@
 
 %% @spec start_link(MochiConfig, Settings) -> ServerRet
 %% @doc API for starting the supervisor.
-start_link(MochiConfig, Settings) ->
+start_link(MochiConfig, Settings) when is_record(Settings, kanaloa_settings) ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, {MochiConfig, Settings}).
 
 %% @spec upgrade() -> ok
