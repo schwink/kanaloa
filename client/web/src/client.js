@@ -113,8 +113,10 @@ KanaloaConnection.prototype.send = function(data) {
 						       function(message) { connection._logDebug(message); }
 						       );
     }
-
-    this._sendBatcher.send(data);
+    
+    // Let's stringify the data now so it is immutable.
+    var dataJson = JSON.stringify(data);
+    this._sendBatcher.send(dataJson);
 };
 
 var /*const*/ KANALOA_WAIT_INCOMING_BASE = 10;
@@ -240,7 +242,16 @@ _KanaloaHttpSendBatcher.prototype._sendPost = function() {
     batcher._post = post;
     
     // TODO: Limit size of sent string to 1 MB to match server limit.
-    var textOutgoing = JSON.stringify(this._outgoing);
+    var textOutgoing = "[";
+    for (var i = 0; i < this._outgoing.length; i++) {
+	if (i != 0) {
+	    textOutgoing += ",";
+	}
+	var text = this._outgoing[i];
+	textOutgoing += text;
+    }
+    textOutgoing += "]";
+
     this._logDebug("Sending batch \"" + textOutgoing + "\"");
     this._post.send(textOutgoing);
     this._post.sentCount = this._outgoing.length;
