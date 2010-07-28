@@ -34,6 +34,7 @@ function updateRequestMessages() {
     }
 }
 
+var id = 0;
 function submit() {
     if (requests.length == 0) {
 	var server = document.getElementById("server").value;
@@ -55,7 +56,7 @@ function submit() {
     var bodyText = bodyElement.value;
     
     var connection = requests[0];
-    connection.send(bodyText);
+    connection.send(bodyText + (id++));
 
     return false;
 }

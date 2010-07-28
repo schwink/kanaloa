@@ -8,7 +8,7 @@
 
 -include("../include/kanaloa.hrl").
 
--export([open/1, send/1, close/0]).
+-export([open/1, send/1, send_json/1, close/0]).
 -export([log/2]).
 
 %% @spec open(Owner::pid()) -> void()
@@ -21,6 +21,12 @@ open(Owner) when is_pid(Owner) ->
 %% @spec send(Data::iolist()) -> ok
 %% @doc Sends a message to the client.
 send(Message) ->
+    MessageJson = mochijson2:encode(Message),
+    send_json(MessageJson).
+
+%% @spec send(Data::json_object()) -> ok
+%% @doc Sends a message to the client.
+send_json(Message) ->
     Self ! {send, Message},
     ok.
 
@@ -31,6 +37,18 @@ close() ->
     ok.
 
 %% Internal API
+
+%% @spec delimit(List::[iolist()], Separator::binary()) -> iolist()
+%% @doc Creates a new list in which elements of the old list are interspersed with the Separator character.
+%% Note that this also reverses the list, which needs to be done anyway.
+delimit(List, Separator) when is_list(List) andalso is_binary(Separator) ->
+    delimit(List, [], Separator).
+delimit([], Result, _) ->
+    Result; % Do not reverse.
+delimit([Item], Result, D) ->
+    delimit([], [Item | Result], D);
+delimit([Item | Rest], Result, D) ->
+    delimit(Rest, [D | [Item | Result]], D).
 
 %% @spec log(MessageTemplate::string(), MessageParameters::[term()]) -> ok
 %% @doc Submits a connection-specific log message. Use like io:format/2.
@@ -123,5 +141,6 @@ send_batch([]) ->
     ok;
 send_batch(Messages) when is_list(Messages) ->
     log("Sending batch of ~w messages", [length(Messages)]),
-    Data = mochijson2:encode(Messages),
+    Delimited = delimit(Messages, <<",">>),
+    Data = [<<"[">>, Delimited, <<"]">>],
     MochiResp:write_chunk(Data).
