@@ -1,13 +1,14 @@
 %% @author Stephen Schwink <kanaloa@schwink.net>
 %% @copyright 2010 Stephen Schwink.
 
-%% @doc Supervisor for the kanaloa gen_servers.
+%% @doc Supervisor for kanaloa.
 
 -module(kanaloa_sup).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
 -behaviour(supervisor).
 
+%% @headerfile "../include/kanaloa.hrl"
 -include("../include/kanaloa.hrl").
 
 %% External exports
@@ -22,7 +23,7 @@ start_link(MochiConfig, Settings) when is_record(Settings, kanaloa_settings) ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, {MochiConfig, Settings}).
 
 %% @spec upgrade() -> ok
-%% @doc Add processes if necessary.
+%% @hidden
 upgrade() ->
     {ok, {_, Specs}} = init([]),
 
@@ -40,8 +41,7 @@ upgrade() ->
     [supervisor:start_child(?MODULE, Spec) || Spec <- Specs],
     ok.
 
-%% @spec init([]) -> SupervisorTree
-%% @doc supervisor callback.
+%% @hidden
 init({MochiConfig, Settings}) ->
     Guid = {kanaloa_guid_server,
 	    {kanaloa_guid_server, start_link, []},

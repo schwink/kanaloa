@@ -1,17 +1,20 @@
 %% @author Stephen Schwink <kanaloa@schwink.net>
 %% @copyright 2010 Stephen Schwink.
 
-%% @doc Web server for kanaloa.
+%% @doc Web server for kanaloa. Starts up the mochiweb_http module.
 
 -module(kanaloa_web).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
+%% @headerfile "../include/kanaloa.hrl"
 -include("../include/kanaloa.hrl").
 
 -export([start_link/2, stop/0, loop/2]).
 
 %% External API
 
+%% @spec start_link(MochiOptions::proplist(), Settings::kanaloa_settings()) -> {ok, Mochiweb::pid()}
+%% @doc Starts mochiweb_http with the appropriate configuration.
 start_link(MochiwebOptions, Settings) ->
     io:format("Kanaloa settings is ~w\n", [Settings]),
     
@@ -23,9 +26,11 @@ start_link(MochiwebOptions, Settings) ->
     io:format("mochiweb_http:start result: ~w\n", [Result]),
     Result.
 
+%% @doc Stops mochiweb_http.
 stop() ->
     mochiweb_http:stop(?MODULE).
 
+%% @hidden
 loop(Req, Settings) when is_record(Settings, kanaloa_settings) ->
     case catch parse_request(Req) of
 	{ok, options} ->

@@ -2,6 +2,7 @@
 %% @copyright 2010 Stephen Schwink.
 
 %% @doc This gen_server module maintains a unique mapping between binary GUIDs and PIDs.
+%% The GUIDs are assigned as connection IDs that reference an "Owner" process on the server.
 
 -module(kanaloa_guid_server).
 -author('Stephen Schwink <kanaloa@schwink.net>').
@@ -27,12 +28,12 @@ new_guid() ->
     list_to_binary(Uuid).
 
 %% @spec register_new(Process::pid(), Id::binary()) -> ok | duplicate_process | duplicate_id
-%% @doc Adds a process identifier to the index.
+%% @doc Adds a process to the index.
 register_new(Process, Id) when is_pid(Process) andalso is_binary(Id) ->
     gen_server:call(?GUID_SERVER, {register, Id, Process}).
 
 %% @spec find(Id::binary()) -> {ok, Process::pid()} | no_id
-%% @doc Retreives a process identifier from the index.
+%% @doc Retreives a process from the index.
 find(Id) when is_binary(Id) ->
     gen_server:call(?GUID_SERVER, {find, Id}).
 

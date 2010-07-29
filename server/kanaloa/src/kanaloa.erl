@@ -1,11 +1,12 @@
 %% @author Stephen Schwink <kanaloa@schwink.net>
 %% @copyright 2010 Stephen Schwink.
 
-%% @doc Public functions to start and stop kanaloa.
+%% @doc Public functions to start kanaloa.
 
 -module(kanaloa).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
+%% @headerfile "../include/kanaloa.hrl"
 -include("../include/kanaloa.hrl").
 
 -export([start_link/2]).
@@ -18,16 +19,17 @@ ensure_started(App) ->
 	    ok
     end.
 
-%% @spec start_link(MochiOptions, KanaloaOptions) -> {ok, Pid::pid()}
-%% @doc Start a local instance of the kanaloa mochiweb server.
+%% @spec start_link(MochiOptions::proplist(), KanaloaOptions::proplist()) -> {ok, Pid::pid()}
+%% @doc Starts a local instance of the kanaloa mochiweb server. The pid() of the kanaloa supervisor is returned, and may be included
+%% in the supervisor tree of the consuming application.
 %%
-%% MochiOptions is a proplist(). See the mochiweb documentation for details. The 'handler' property will be overridden by kanaloa.
+%% See the mochiweb documentation at [http://dawsdesign.com/man/mochiweb/] for details on MochiOptions. The 'handler' option will be overridden by kanaloa.
 %%
 %% KanaloaOptions is a proplist() with the following possible items:
 %% ===handler===
 %% A fun(Connection::kanaloa_connection()) that is called when a new connection is established. Required.
 %% ===http_content_type===
-%% A term to pass as the value of the HTTP Content-Type header. Defaults to <<"application/json">>.
+%% A term to pass as the value of the HTTP Content-Type header. Defaults to application/json.
 %% ===parse_jsonrpc===
 %% A boolean() indicating whether kanaloa should parse incoming data as JSON-RPC requests. Defaults to false.
 %% ===batch_interval===
@@ -35,6 +37,7 @@ ensure_started(App) ->
 %% ===batch_count===
 %% An integer() representing the number of batches to send before forcing the client to make a fresh connection.
 %% This is necessary to enforce memory leak protection on the client (so they don't try to hold a big unused buffer in memory). Defaults to 32.
+%%
 %% batch_interval * batch_count = maximum duration of an HTTP connection between client and server.
 %% (Note that HTTP keep-alive should make the TCP connection duration much longer.)
 start_link(MochiOptions, KanaloaOptions) when is_list(MochiOptions) andalso is_list(KanaloaOptions) ->

@@ -1,0 +1,31 @@
+@title kanaloa
+
+@author Stephen Schwink <kanaloa@schwink.net>
+@copyright 2010 Stephen Schwink.
+@version 0.01
+
+@doc Kanaloa is a simple framework that facilitates communication between a web client and an Erlang server. It is named after the Hawaiin god of the ocean.
+
+==Overview==
+
+Kanaloa has two parts:
+
+===Client===
+The client may be used from any JavaScript-enabled web browser. It has been tested on the latest versions of IE (9), FireFox (4.0 b2), Chrome (5.0), Safari (5.0), and Opera (10.10).
+
+To use the client, create an instance of the KanaloaConnection class and set the callback properties on it. See the documentation included in the JavaScript files.
+
+===Server===
+The server can be started by calling kanaloa:start_link/2. A 'handler' function is required in the KanaloaOptions parameter. This function is invoked in a new process for each new connection that is created. See the file test/start_kanaloa.erl for an example handler function. The handler process (the "owner")  communicates with potentially transient connection processes, which talk to the client over HTTP.
+
+The consumer has a lot of responsibility with regards to implementing the handler. The handler function must not return until the application-level connection dies. It is expected that most of its time will be spent in a receive block, waiting for input. When a {connection, NewConnection} message is received, the owner must immediately begin using the new connection. The owner is set to trap_exit for the connection process; when such an exit signal is received, the owner process must immediately go into a waiting state where no further data is sent to the old connection. In this case, either a new connection will be received, or the owner process must exit after a certain timeout.
+
+==Protocol==
+
+Kanaloa communicates over HTTP. Generally, messages are sent as HTTP chunks, each of which contains a well-formed JSON array of data objects.
+
+Two connections are maintained between the client and the server. A ConnectionId header, set by the server on the first response, is used to identify the owner process that data should be routed to.
+
+In the upward connection, the client sends batches up updates in POST requests.
+
+In the downward connection, if the client supports it, the server will stream HTTP chunks containing JSON arrays. If the client does not support streaming (IE), longpolling is used.

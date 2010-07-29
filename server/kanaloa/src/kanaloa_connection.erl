@@ -6,26 +6,27 @@
 -module(kanaloa_connection, [MochiResp, Self, Settings, ConnectionId, CometMethod]).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
+%% @headerfile "../include/kanaloa.hrl"
 -include("../include/kanaloa.hrl").
 
 -export([open/1, send/1, send_json/1, close/0]).
 -export([log/2]).
 
-%% @spec open(Owner::pid()) -> void()
+%% @spec open(Owner::pid()) -> any()
 %% @doc Opens the connection. Control does not return from this call.
 open(Owner) when is_pid(Owner) ->
     process_flag(trap_exit, true),
     link(Owner),
     loop(Owner, Settings#kanaloa_settings.batch_count).
 
-%% @spec send(Data::iolist()) -> ok
+%% @spec send(Data::json_term()) -> ok
 %% @doc Sends a message to the client.
 send(Message) ->
     MessageJson = mochijson2:encode(Message),
     send_json(MessageJson).
 
-%% @spec send(Data::json_object()) -> ok
-%% @doc Sends a message to the client.
+%% @spec send_json(Data::iolist()) -> ok
+%% @doc Sends a message to the client that has already been encoded into JSON with mochijson2:encode/1.
 send_json(Message) ->
     Self ! {send, Message},
     ok.

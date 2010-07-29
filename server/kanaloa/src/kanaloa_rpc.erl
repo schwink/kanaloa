@@ -1,17 +1,19 @@
 %% @author Stephen Schwink <kanaloa@schwink.net>
 %% @copyright 2010 Stephen Schwink.
 
-%% @doc Utils for parsing JSON-RPC version 1.0 message calls.
+%% @doc Utilities for parsing JSON-RPC version 1.0 objects.
+%% For more information, set [http://json-rpc.org/wiki/specification].
+%% The main caveat is that we only support integer IDs.
 
 -module(kanaloa_rpc).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
 -export([parse/1, format_call/3, format_result/2, format_error/2]).
 
-%% @spec parse(json_object()) -> request_spec() | response_spec()
-%% where request_spec() = {request, Id::integer() | null, Method::binary(), Params::json_array()}
-%%       response_spec() = {response, Id::integer(), Result::json_object(), Error::json_object()}
-%% @doc Implements (mostly) the JSON-RPC 1.0 specification. See http://json-rpc.org/wiki/specification
+%% @spec parse(json_object()) -> (rpc_request() | rpc_response())
+%% where rpc_request() = {request, Id::(integer() | null), Method::binary(), Params::json_array()}
+%%       rpc_response() = {response, Id::integer(), Result::json_term(), Error::json_term()}
+%% @doc Parses a mochijson2 json_object() as a JSON-RPC request or result.
 parse({struct, Fields}) when is_list(Fields) ->
     parse_fields(Fields, {noid, nomethod, noparams, noresult, noerror}).
 
@@ -70,7 +72,7 @@ format_call(Id, Method, Params) when (Id == null orelse is_integer(Id)) andalso 
     mochijson2:encode(JsonObject).
 
 %% @spec format_result(Id::integer(), Result::json_term()) -> iolist()
-%% @doc Creates a JSON-RPC response object suitable for reporting the status of an RPC call.
+%% @doc Creates a JSON-RPC response object suitable for reporting the result of an RPC call.
 format_result(Id, Result) when is_integer(Id) ->
     JsonObject = {struct, [{?RPC_ID, Id},
 			   {?RPC_RESULT, Result},
