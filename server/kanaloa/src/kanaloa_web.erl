@@ -114,30 +114,26 @@ handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
 	
 	new when IsDownloadRequest -> % A new connection is being initiated.
 	    NewConnectionId = kanaloa_guid_server:new_guid(),
-	    
-	    Connection = case CometMethod of
-			     longpoll -> % For new longpoll, just send back the ConnectionId so the client can finish initializing.
-				 Headers = [{"ConnectionId", NewConnectionId}],
-				 Req:ok({Settings#kanaloa_settings.http_content_type, Headers, []}),
-				 orphaned;
-			     _ ->
-				 new_connection(Req, Settings, NewConnectionId, CometMethod)
-			 end,
+
+	    NewSettings = case CometMethod of
+			   longpoll ->
+			          % For new longpoll, we want to close the initial response quickly, after 1 batch.
+			          % We need to send back the ConnectionId so the client can finish initializing.
+				  Settings#kanaloa_settings{ batch_count = 1 };
+			      _ ->
+				  Settings
+			  end,
+	    Connection = new_connection(Req, NewSettings, NewConnectionId, CometMethod),
 	    
 	    Handler = Settings#kanaloa_settings.handler,
 	    NewOwner =  spawn(fun () ->
-				      io:format("~s : Owner process spawned\n", [NewConnectionId]),
+				      Connection:log("Owner process spawned", []),
 				      process_flag(trap_exit, true),
 				      Handler(Connection)
 			      end),
 	    ok = kanaloa_guid_server:register_new(NewOwner, NewConnectionId),
 	    
-	    dispatch_chunks(NewOwner, Data, ChunkKind),
-	    
-	    case Connection of
-		orphaned -> ok;
-		_ -> open_connection(Connection, NewOwner)
-	    end
+	    open_connection(Connection, NewOwner)
     end.
 
 %% @doc Responds properly to the HTTP OPTIONS request sent by Chrome if the request is cross-origin.
