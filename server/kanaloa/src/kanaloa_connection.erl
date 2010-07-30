@@ -88,7 +88,7 @@ loop(Owner, Count) ->
 		   longpoll ->
 		       case Messages of
 			   [] -> Count - 1; % Carry on
-			   _ when Count > 1 -> 1 % Listen for one more batch, then close the connection.
+			   _ -> 1 % Listen for one more batch, then close the connection.
 		       end;
 		   _ ->
 		       Count - 1
