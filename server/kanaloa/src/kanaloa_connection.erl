@@ -19,17 +19,23 @@ open(Owner) when is_pid(Owner) ->
     link(Owner),
     loop(Owner, Settings#kanaloa_settings.batch_count).
 
-%% @spec send(Data::json_term()) -> ok
+%% @spec send(Data::json_term()) -> (ok | timeout)
 %% @doc Sends a message to the client.
 send(Message) ->
     MessageJson = mochijson2:encode(Message),
     send_json(MessageJson).
 
-%% @spec send_json(Data::iolist()) -> ok
+%% @spec send_json(Data::iolist()) -> (ok | timeout)
 %% @doc Sends a message to the client that has already been encoded into JSON with mochijson2:encode/1.
 send_json(Message) ->
     Self ! {send, Message},
-    ok.
+    
+    receive
+	send_queued ->
+	    ok
+    after Settings#kanaloa_settings.connection_message_timeout ->
+	    timeout
+    end.
 
 %% @spec close() -> ok
 %% @doc Closes the connection. The process will exit; no further data can be sent.
@@ -113,6 +119,7 @@ loop_accumulate(Owner, Messages, Timeout) when is_list(Messages) andalso is_inte
 	true ->
 	    receive
 		{send, Message} ->
+		    Owner ! send_queued,
 		    loop_accumulate(Owner, [Message | Messages], Timeout);
 		
 		{'EXIT', Owner, _Reason} ->

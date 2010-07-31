@@ -80,9 +80,9 @@ get_connection_owner(ConnectionId) ->
 	none ->
 	    new;
 	Binary when is_binary(Binary) ->
-	    case kanaloa_guid_server:find(ConnectionId) of
-		{ok, Owner} when is_pid(Owner) ->
-		    {ok, Owner};
+	    case kanaloa_state_server:get_state(ConnectionId) of
+		{ok, State} ->
+		    {ok, State#kanaloa_connection_state.owner};
 		_ ->
 		    expired
 	    end
@@ -118,7 +118,7 @@ handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
 	    open_connection(Connection, ExistingOwner);
 	
 	new when IsDownloadRequest -> % A new connection is being initiated.
-	    NewConnectionId = kanaloa_guid_server:new_guid(),
+	    NewConnectionId = kanaloa_state_server:new_guid(),
 
 	    NewSettings = case CometMethod of
 			   longpoll ->
@@ -136,7 +136,9 @@ handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
 				      process_flag(trap_exit, true),
 				      Handler(Connection)
 			      end),
-	    ok = kanaloa_guid_server:register_new(NewOwner, NewConnectionId),
+	    
+	    ConnectionState = #kanaloa_connection_state{ id = NewConnectionId, owner = NewOwner },
+	    ok = kanaloa_state_server:set_state(ConnectionState),
 	    
 	    open_connection(Connection, NewOwner)
     end.

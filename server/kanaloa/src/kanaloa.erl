@@ -83,15 +83,21 @@ get_kanaloa_settings(Options) ->
 		     BC when is_integer(BC) andalso (BC > 16) ->
 			 BC
 		 end,
+
+    ConnectionTimeout = case proplists:get_value(connection_message_timeout, Options, 100) of
+			    CT when is_integer(CT) ->
+				CT
+			end,
     
     #kanaloa_settings{
-		   handler = HandlerFun,
-		   http_content_type = ContentType,
-		   parse_jsonrpc = ParseJsonRpc,
-		   batch_interval = BatchInterval,
-		   batch_check_interval = BatchCheckInterval,
-		   batch_count = BatchCount
-		  }.
+			  handler = HandlerFun,
+			  http_content_type = ContentType,
+			  parse_jsonrpc = ParseJsonRpc,
+			  batch_interval = BatchInterval,
+			  batch_check_interval = BatchCheckInterval,
+			  batch_count = BatchCount,
+			  connection_message_timeout = ConnectionTimeout
+			 }.
 
 %% @doc Replaces the specified entry in a proplist.
 replace_option(Key, Options, Value) ->

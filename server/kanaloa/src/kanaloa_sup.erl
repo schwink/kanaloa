@@ -43,14 +43,14 @@ upgrade() ->
 
 %% @hidden
 init({MochiConfig, Settings}) ->
-    Guid = {kanaloa_guid_server,
-	    {kanaloa_guid_server, start_link, []},
-	    permanent, 5000, worker, dynamic},
+    State = {kanaloa_state_server,
+	     {kanaloa_state_server, start_link, []},
+	     permanent, 5000, worker, dynamic},
     Web = {kanaloa_web,
            {kanaloa_web, start_link, [MochiConfig, Settings]},
            permanent, 5000, worker, dynamic},
     
-    Processes = [Guid, Web],
+    Processes = [State, Web],
     {ok, {{one_for_all, 100, 100}, Processes}}.
 
 
