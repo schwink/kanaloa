@@ -151,4 +151,16 @@ send_batch(Messages) when is_list(Messages) ->
     log("Sending batch of ~w messages", [length(Messages)]),
     Delimited = delimit(Messages, <<",">>),
     Data = [<<"[">>, Delimited, <<"]">>],
-    MochiResp:write_chunk(Data).
+    
+    case catch MochiResp:write_chunk(Data) of
+	ok ->
+	    ok;
+	
+	Error ->
+	    % Remember the pending messages and try to re-send them next time.
+	    {ok, State} = kanaloa_state_server:get_state(ConnectionId),
+	    NewState = State#kanaloa_connection_state { pending = lists:reverse(Messages) },
+	    kanaloa_state_server:set_state(NewState),
+	    log("Registered a set of ~w messages to be sent when the client reconnects.", [length(Messages)]),
+	    exit(Error)
+    end.

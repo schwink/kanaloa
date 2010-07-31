@@ -75,14 +75,14 @@ get_connection_id(Req) ->
 	    Value
     end.
 
-get_connection_owner(ConnectionId) ->
+get_connection_state(ConnectionId) ->
     case ConnectionId of
 	none ->
 	    new;
 	Binary when is_binary(Binary) ->
 	    case kanaloa_state_server:get_state(ConnectionId) of
 		{ok, State} ->
-		    {ok, State#kanaloa_connection_state.owner};
+		    {ok, State};
 		_ ->
 		    expired
 	    end
@@ -100,21 +100,33 @@ handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
 		    true -> json;
 		    false -> chunk
 		end,
-    case get_connection_owner(ConnectionId) of
+    case get_connection_state(ConnectionId) of
 	expired -> % The owner has died. Tell the client to reconnect.
 	    Req:respond({410, [], []}), % Gone
 	    exit(bad_connection_owner);
 	
-	{ok, ExistingOwner} when not IsDownloadRequest -> % An upload request is posting data.
+	{ok, State} when not IsDownloadRequest -> % An upload request is posting data.
+	    ExistingOwner = State#kanaloa_connection_state.owner,
 	    dispatch_chunks(ExistingOwner, Data, ChunkKind),
 	    Req:ok({Settings#kanaloa_settings.http_content_type, [], []});
 	
-	{ok, ExistingOwner} when IsDownloadRequest -> % A download request is attempting to reconnect.
+	{ok, State} when IsDownloadRequest -> % A download request is attempting to reconnect.
+	    ExistingOwner = State#kanaloa_connection_state.owner,
 	    Connection = new_connection(Req, Settings, ConnectionId, CometMethod),
 	    dispatch_connection(ExistingOwner, Connection),
 	    
 	    dispatch_chunks(ExistingOwner, Data, ChunkKind),
-
+	    
+	    % Try again to send any messages left over from the previous connection.
+	    % This list will be non-empty only if the connection was interrupted from the client side.
+	    PendingMessages = State#kanaloa_connection_state.pending,
+	    Connection:log("Re-sending list of ~w messages", [length(PendingMessages)]),
+	    lists:map(fun (M) ->
+			      Connection:send_json(M)
+		      end, PendingMessages),
+	    NewState = State#kanaloa_connection_state { pending = [] },
+	    kanaloa_state_server:set_state(NewState),
+	    
 	    open_connection(Connection, ExistingOwner);
 	
 	new when IsDownloadRequest -> % A new connection is being initiated.
