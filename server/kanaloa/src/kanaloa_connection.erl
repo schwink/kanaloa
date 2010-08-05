@@ -71,7 +71,6 @@ loop(Owner, Count) ->
     % The client will reconnect when this connection is terminated.
     if
 	Count < 1 ->
-	    log("Connection reached batch count.", []),
 	    exit(count);
 	true ->
 	    ok
@@ -85,8 +84,7 @@ loop(Owner, Count) ->
     case catch send_batch(Messages) of
 	ok ->
 	    ok;
-	SendError ->
-	    log("Error sending a batch: ~w", [SendError]),
+	_SendError ->
 	    exit(closed_remote)
     end,
     
@@ -144,7 +142,6 @@ now_ms() ->
 %% @spec send_batch([message()]) -> ok
 %% @doc Sends the batch of messages over the wire as a HTTP chunk, encoded as a JSON array.
 send_batch([]) ->
-    log("Sending empty batch to test that the client is still receiving.", []),
     MochiResp:write_chunk(<<"\n">>), % Send a batch to detect if the connection has closed.
     ok;
 send_batch(Messages) when is_list(Messages) ->
@@ -159,6 +156,6 @@ send_batch(Messages) when is_list(Messages) ->
 	Error ->
 	    % Remember the pending messages and try to re-send them next time.
 	    kanaloa_state_server:add_pending(ConnectionId, lists:reverse(Messages)),
-	    log("Registered a set of ~w messages to be sent when the client reconnects.", [length(Messages)]),
+	    log("Send error. Stored ~w pending messages to be re-sent when the client reconnects.", [length(Messages)]),
 	    exit(Error)
     end.

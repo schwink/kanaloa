@@ -80,10 +80,8 @@ stop() ->
 handle_call({get_owner, Id}, _From, State) ->
     Result = case gb_trees:lookup(Id, State#state.id_to_process) of
 		 none ->
-		     log("couldn't find Id ~s", [Id]),
 		     no_id;
 		 {value, Entry} ->
-		     log("found Id ~s", [Id]),
 		     Entry#kanaloa_connection_state.owner
 	     end,
     {reply, Result, State};
@@ -91,12 +89,9 @@ handle_call({get_owner, Id}, _From, State) ->
 handle_call({pop_pending, Id}, _From, State) ->
     case gb_trees:lookup(Id, State#state.id_to_process) of
 	none ->
-	    log("couldn't find Id ~s", [Id]),
 	    {reply, no_id, State};
 	
 	{value, Entry} ->
-	    log("found Id ~s", [Id]),
-	    
 	    NewEntry = Entry#kanaloa_connection_state{ pending = [] },
 	    NewState = set_entry(State, NewEntry),
 	    
@@ -117,14 +112,11 @@ handle_cast({new, Entry}, State) ->
 handle_cast({add_pending, Id, Pending}, State) ->
     NewState = case gb_trees:lookup(Id, State#state.id_to_process) of
 		   none ->
-		       log("couldn't find Id ~s", [Id]),
 		       State;
 		   
 		   {value, Entry} ->
-		       log("found Id ~s", [Id]),
 		       OldPending = Entry#kanaloa_connection_state.pending,
 		       NewPending = lists:append(OldPending, Pending),
-		       io:format("adding ~w, resulting in ~w\n", [Pending, NewPending]),
 		       NewEntry = Entry#kanaloa_connection_state{ pending = NewPending },
 		       set_entry(State, NewEntry)
 	       end,
@@ -133,7 +125,6 @@ handle_cast({add_pending, Id, Pending}, State) ->
 set_entry(State, Entry) ->
     Id = Entry#kanaloa_connection_state.id,
     Process = Entry#kanaloa_connection_state.owner,
-    log("setting Id ~s Pid ~w", [Id, Process]),
 
     NewIdIndex = gb_trees:enter(Id, Entry, State#state.id_to_process),
     NewProcessIndex = gb_trees:enter(Process, Entry, State#state.process_to_id),
@@ -145,27 +136,18 @@ set_entry(State, Entry) ->
 
 %% @hidden
 %% @doc Internal gen_server callback. Do not call directly.
-handle_info(Info, State) ->
-    NewState = case Info of
-		   {'EXIT', Process, Why} ->
-		       log("Process ~w exited with reason ~w", [Process, Why]),
-		       % Remove the process.
-		       case gb_trees:lookup(Process, State#state.process_to_id) of
-			   none ->
-			       log("Dead process ~w was not found in the index", [Process]),
-			       State;
-			   {value, Entry} ->
-			       Id = Entry#kanaloa_connection_state.id,
-			       log("Dead process ~w was found with Id ~s in the index", [Process, Id]),
-			       NewId = gb_trees:delete_any(Id, State#state.id_to_process),
-			       NewProcess = gb_trees:delete_any(Process, State#state.process_to_id),
-			       #state{ id_to_process = NewId,
-				       process_to_id = NewProcess
-				      }
-		       end;
-		   Wtf ->
-		       log("Caught unhandled message: ~w", [Wtf]),
-		       State
+handle_info({'EXIT', Process, _Why}, State) ->
+    % Remove the process.
+    NewState = case gb_trees:lookup(Process, State#state.process_to_id) of
+		   none ->
+		       State;
+		   {value, Entry} ->
+		       Id = Entry#kanaloa_connection_state.id,
+		       NewId = gb_trees:delete_any(Id, State#state.id_to_process),
+		       NewProcess = gb_trees:delete_any(Process, State#state.process_to_id),
+		       #state{ id_to_process = NewId,
+			       process_to_id = NewProcess
+			      }
 	       end,
     {noreply, NewState}.
 
@@ -178,10 +160,3 @@ terminate(_Reason, _State) ->
 %% @doc Internal gen_server callback. Do not call directly.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
-
-%% @spec log(MessageTemplate::string(), MessageParameters::[term()]) -> ok
-%% @doc Submits a log message. Use like io:format/2.
-log(Template, Parameters) when is_list(Template) andalso is_list(Parameters) ->
-    Message = io_lib:format(Template, Parameters),
-    io:format("kanaloa_state_server : ~s\n", [Message]),
-    ok.

@@ -16,8 +16,6 @@
 %% @spec start_link(MochiOptions::proplist(), Settings::kanaloa_settings()) -> {ok, Mochiweb::pid()}
 %% @doc Starts mochiweb_http with the appropriate configuration.
 start_link(MochiwebOptions, Settings) ->
-    io:format("Kanaloa settings is ~w\n", [Settings]),
-    
     Loop = fun (Req) ->
                    ?MODULE:loop(Req, Settings)
            end,
@@ -39,12 +37,10 @@ loop(Req, Settings) when is_record(Settings, kanaloa_settings) ->
 	    case catch parse_body(Body, Settings) of
 		{ok, DataSegments} ->
 		    handle_connection_request(Req, Settings, CometMethod, ConnectionId, DataSegments);
-		Error ->
-		    io:format("Body parse error: ~w\n", [Error]),
+		_Error ->
 		    Req:respond({400, [], []}) % Bad request
 	    end;
-	ParseError ->
-	    io:format("Request parse error: ~w\n", [ParseError]),
+	_ParseError ->
 	    Req:respond({400, [], []}) % Bad request
     end.
 
@@ -219,7 +215,7 @@ parse_request(Req) ->
     case Req:get(method) of
 	'POST' ->
 	    Path = get_path(Req),
-	    io:format("POST request to ~s\n", [Path]),
+	    % Fail on non-empty path.
 	    "/" = Path,
 	    
 	    CometMethod = get_comet_method(Req),

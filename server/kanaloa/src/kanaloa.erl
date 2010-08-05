@@ -47,7 +47,7 @@ start_link(MochiOptions, KanaloaOptions) when is_list(MochiOptions) andalso is_l
     ensure_started(crypto),
     
     Result = kanaloa_sup:start_link(MochiOptions2, Settings),
-    io:format("kanaloa start result: ~w\n", [Result]),
+    io:format("kanaloa:start_link result: ~w\n", [Result]),
     Result.
 
 %% @doc We need to supervise the options passed to mochiweb.
