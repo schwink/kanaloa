@@ -113,9 +113,6 @@ handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
 	{ok, State} when IsDownloadRequest -> % A download request is attempting to reconnect.
 	    ExistingOwner = State#kanaloa_connection_state.owner,
 	    Connection = new_connection(Req, Settings, ConnectionId, CometMethod),
-	    dispatch_connection(ExistingOwner, Connection),
-	    
-	    dispatch_chunks(ExistingOwner, Data, ChunkKind),
 	    
 	    % Try again to send any messages left over from the previous connection.
 	    % This list will be non-empty only if the connection was interrupted from the client side.
@@ -126,6 +123,11 @@ handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
 		      end, PendingMessages),
 	    NewState = State#kanaloa_connection_state { pending = [] },
 	    kanaloa_state_server:set_state(NewState),
+	    
+	    dispatch_connection(ExistingOwner, Connection),
+	    
+	    % Note that the current Kanaloa client does not send upload data in download connections.
+	    dispatch_chunks(ExistingOwner, Data, ChunkKind),
 	    
 	    open_connection(Connection, ExistingOwner);
 	
