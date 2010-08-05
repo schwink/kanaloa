@@ -158,9 +158,7 @@ send_batch(Messages) when is_list(Messages) ->
 	
 	Error ->
 	    % Remember the pending messages and try to re-send them next time.
-	    {ok, State} = kanaloa_state_server:get_state(ConnectionId),
-	    NewState = State#kanaloa_connection_state { pending = lists:reverse(Messages) },
-	    kanaloa_state_server:set_state(NewState),
+	    kanaloa_state_server:add_pending(ConnectionId, lists:reverse(Messages)),
 	    log("Registered a set of ~w messages to be sent when the client reconnects.", [length(Messages)]),
 	    exit(Error)
     end.

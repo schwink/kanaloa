@@ -75,14 +75,14 @@ get_connection_id(Req) ->
 	    Value
     end.
 
-get_connection_state(ConnectionId) ->
+get_connection_owner(ConnectionId) ->
     case ConnectionId of
 	none ->
 	    new;
 	Binary when is_binary(Binary) ->
-	    case kanaloa_state_server:get_state(ConnectionId) of
-		{ok, State} ->
-		    {ok, State};
+	    case kanaloa_state_server:get_owner(ConnectionId) of
+		Owner when is_pid(Owner) ->
+		    {ok, Owner};
 		_ ->
 		    expired
 	    end
@@ -100,33 +100,29 @@ handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
 		    true -> json;
 		    false -> chunk
 		end,
-    case get_connection_state(ConnectionId) of
+    case get_connection_owner(ConnectionId) of
 	expired -> % The owner has died. Tell the client to reconnect.
 	    Req:respond({410, [], []}), % Gone
 	    exit(bad_connection_owner);
 	
-	{ok, State} when not IsDownloadRequest -> % An upload request is posting data.
-	    ExistingOwner = State#kanaloa_connection_state.owner,
+	{ok, ExistingOwner} when not IsDownloadRequest -> % An upload request is posting data.
 	    dispatch_chunks(ExistingOwner, Data, ChunkKind),
 	    Req:ok({Settings#kanaloa_settings.http_content_type, [], []});
 	
-	{ok, State} when IsDownloadRequest -> % A download request is attempting to reconnect.
-	    ExistingOwner = State#kanaloa_connection_state.owner,
+	{ok, ExistingOwner} when IsDownloadRequest -> % A download request is attempting to reconnect.
 	    Connection = new_connection(Req, Settings, ConnectionId, CometMethod),
 	    
 	    % Try again to send any messages left over from the previous connection.
 	    % This list will be non-empty only if the connection was interrupted from the client side.
-	    PendingMessages = State#kanaloa_connection_state.pending,
+	    PendingMessages = kanaloa_state_server:pop_pending(ConnectionId),
 	    Connection:log("Re-sending list of ~w messages", [length(PendingMessages)]),
 	    lists:map(fun (M) ->
 			      Connection:send_json(M)
 		      end, PendingMessages),
-	    NewState = State#kanaloa_connection_state { pending = [] },
-	    kanaloa_state_server:set_state(NewState),
 	    
 	    dispatch_connection(ExistingOwner, Connection),
 	    
-	    % Note that the current Kanaloa client does not send upload data in download connections.
+	    % Note that the current Kanaloa client does not send upload data in download connection requests.
 	    dispatch_chunks(ExistingOwner, Data, ChunkKind),
 	    
 	    open_connection(Connection, ExistingOwner);
@@ -151,8 +147,7 @@ handle_connection_request(Req, Settings, CometMethod, ConnectionId, Data) ->
 				      Handler(Connection)
 			      end),
 	    
-	    ConnectionState = #kanaloa_connection_state{ id = NewConnectionId, owner = NewOwner },
-	    ok = kanaloa_state_server:set_state(ConnectionState),
+	    ok = kanaloa_state_server:new_state(NewConnectionId, NewOwner),
 	    
 	    open_connection(Connection, NewOwner)
     end.

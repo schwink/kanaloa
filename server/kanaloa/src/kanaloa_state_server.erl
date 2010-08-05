@@ -17,11 +17,13 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 -export([new_guid/0]).
--export([set_state/1, get_state/1]).
+-export([new_state/2, get_owner/1, pop_pending/1, add_pending/2]).
 
 -define(GUID_SERVER, whereis(?MODULE)).
 
 -record(state, {id_to_process, process_to_id}).
+%% @type kanaloa_connection_state() = {Owner::pid(), Guid::binary(), Pending::[iolist()]}
+-record(kanaloa_connection_state, {owner, id, pending=[]}).
 
 %% @spec new_guid() -> binary()
 %% @doc Returns a globally unique identifier.
@@ -31,17 +33,27 @@ new_guid() ->
     Uuid = string:strip(Out, right, $\n),
     list_to_binary(Uuid).
 
-%% @spec set_state(kanaloa_connection_state()) -> ok
-%% @doc Sets a connection's state in the index.
-set_state(Entry) when is_record(Entry, kanaloa_connection_state)
-                      andalso is_pid(Entry#kanaloa_connection_state.owner)
-                      andalso is_binary(Entry#kanaloa_connection_state.id) ->
-    gen_server:call(?GUID_SERVER, {set, Entry}).
+%% @spec new_state(Id::binary(), Owner::pid()) -> ok
+%% @doc Inserts a new connection's initial state in the index.
+new_state(Id, Owner) when is_pid(Owner)
+                     andalso is_binary(Id) ->
+    Entry = #kanaloa_connection_state{ id = Id, owner = Owner },
+    gen_server:cast(?GUID_SERVER, {new, Entry}).
 
-%% @spec get_state(Id::binary()) -> {ok, kanaloa_connection_state()} | no_id
-%% @doc Retreives a connection's state from the index.
-get_state(Id) when is_binary(Id) ->
-    gen_server:call(?GUID_SERVER, {get, Id}).
+%% @spec get_owner(Id::binary()) -> (pid() | no_id)
+%% @doc Looks up a connection's owner process.
+get_owner(Id) when is_binary(Id) ->
+    gen_server:call(?GUID_SERVER, {get_owner, Id}).
+
+%% @spec pop_pending(Id::binary()) -> ([iolist()] | no_id)
+%% @doc Atomically retrieves and resets a connection's pending message list, returning the old list.
+pop_pending(Id) when is_binary(Id) ->
+    gen_server:call(?GUID_SERVER, {pop_pending, Id}).
+
+%% @spec add_pending(Id::binary(), Pending::[iolist()]) -> ok
+%% @doc Adds the specified messages to the end of the connection's pending message list.
+add_pending(Id, Pending) when is_binary(Id) andalso is_list(Pending) ->
+    gen_server:cast(?GUID_SERVER, {add_pending, Id, Pending}).
 
 %% @spec start_link() -> ok
 start_link() ->
@@ -65,36 +77,71 @@ stop() ->
 
 %% @hidden
 %% @doc Internal gen_server callback. Do not call directly.
-handle_call({set, Entry}, _From, State) ->
-    Id = Entry#kanaloa_connection_state.id,
-    Process = Entry#kanaloa_connection_state.owner,
-    log("registering Id ~s Pid ~w", [Id, Process]),
-    
-    link(Process),
-    NewId = gb_trees:enter(Id, Entry, State#state.id_to_process),
-    NewProcess = gb_trees:enter(Process, Entry, State#state.process_to_id),
-    NewState = #state{
-      id_to_process = NewId,
-      process_to_id = NewProcess
-     },
-    {reply, ok, NewState};
+handle_call({get_owner, Id}, _From, State) ->
+    Result = case gb_trees:lookup(Id, State#state.id_to_process) of
+		 none ->
+		     log("couldn't find Id ~s", [Id]),
+		     no_id;
+		 {value, Entry} ->
+		     log("found Id ~s", [Id]),
+		     Entry#kanaloa_connection_state.owner
+	     end,
+    {reply, Result, State};
 
-handle_call({get, Id}, _From, State) ->
+handle_call({pop_pending, Id}, _From, State) ->
     case gb_trees:lookup(Id, State#state.id_to_process) of
 	none ->
 	    log("couldn't find Id ~s", [Id]),
 	    {reply, no_id, State};
+	
 	{value, Entry} ->
 	    log("found Id ~s", [Id]),
-	    {reply, {ok, Entry}, State}
+	    
+	    NewEntry = Entry#kanaloa_connection_state{ pending = [] },
+	    NewState = set_entry(State, NewEntry),
+	    
+	    Pending = Entry#kanaloa_connection_state.pending,
+	    {reply, Pending, NewState}
     end.
 
 %% @hidden
 %% @doc Internal gen_server callback. Do not call directly.
 handle_cast(stop, State) ->
     {stop, normal, State};
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+
+handle_cast({new, Entry}, State) ->
+    link(Entry#kanaloa_connection_state.owner),
+    NewState = set_entry(State, Entry),
+    {noreply, NewState};
+
+handle_cast({add_pending, Id, Pending}, State) ->
+    NewState = case gb_trees:lookup(Id, State#state.id_to_process) of
+		   none ->
+		       log("couldn't find Id ~s", [Id]),
+		       State;
+		   
+		   {value, Entry} ->
+		       log("found Id ~s", [Id]),
+		       OldPending = Entry#kanaloa_connection_state.pending,
+		       NewPending = lists:append(OldPending, Pending),
+		       io:format("adding ~w, resulting in ~w\n", [Pending, NewPending]),
+		       NewEntry = Entry#kanaloa_connection_state{ pending = NewPending },
+		       set_entry(State, NewEntry)
+	       end,
+    {noreply, NewState}.
+
+set_entry(State, Entry) ->
+    Id = Entry#kanaloa_connection_state.id,
+    Process = Entry#kanaloa_connection_state.owner,
+    log("setting Id ~s Pid ~w", [Id, Process]),
+
+    NewIdIndex = gb_trees:enter(Id, Entry, State#state.id_to_process),
+    NewProcessIndex = gb_trees:enter(Process, Entry, State#state.process_to_id),
+    NewState = #state{
+      id_to_process = NewIdIndex,
+      process_to_id = NewProcessIndex
+     },
+    NewState.
 
 %% @hidden
 %% @doc Internal gen_server callback. Do not call directly.

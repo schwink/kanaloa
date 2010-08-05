@@ -27,48 +27,48 @@ registered_local_test() ->
     
     stop().
 
-find_empty_test() ->
+get_owner_none_test() ->
     {ok, _Server} = start_link(),
     
-    Result = kanaloa_state_server:get_state(<<"asdf">>),
+    Result = kanaloa_state_server:get_owner(<<"asdf">>),
     ?assertEqual(no_id, Result),
     
     stop().
 
-find_existing_test() ->
+get_owner_existing_test() ->
     {ok, _Server} = start_link(),
     
-    Entry = #kanaloa_connection_state { id = kanaloa_state_server:new_guid(),
-					owner = get_sample_pid() },
-    ok = kanaloa_state_server:set_state(Entry),
-    {ok, ReceivedEntry} = kanaloa_state_server:get_state(Entry#kanaloa_connection_state.id),
+    Id = kanaloa_state_server:new_guid(),
+    Owner = get_sample_pid(),
+    ok = kanaloa_state_server:new_state(Id, Owner),
+    ReceivedOwner = kanaloa_state_server:get_owner(Id),
     
-    ?assertEqual(Entry, ReceivedEntry),
+    ?assertEqual(Owner, ReceivedOwner),
     
     stop().
 
-find_multiple_existing_test() ->
+get_owner_multiple_existing_test() ->
     {ok, _Server} = start_link(),
     
-    Entry1 = #kanaloa_connection_state { id = kanaloa_state_server:new_guid(),
-					owner = get_sample_pid() },
-    ok = kanaloa_state_server:set_state(Entry1),
-
-    Entry2 = #kanaloa_connection_state { id = kanaloa_state_server:new_guid(),
-					owner = get_sample_pid() },
-    ok = kanaloa_state_server:set_state(Entry2),
-
-    Entry3 = #kanaloa_connection_state { id = kanaloa_state_server:new_guid(),
-					owner = get_sample_pid() },
-    ok = kanaloa_state_server:set_state(Entry3),
-
-    {ok, ReceivedEntry1} = kanaloa_state_server:get_state(Entry1#kanaloa_connection_state.id),
-    {ok, ReceivedEntry2} = kanaloa_state_server:get_state(Entry2#kanaloa_connection_state.id),
-    {ok, ReceivedEntry3} = kanaloa_state_server:get_state(Entry3#kanaloa_connection_state.id),
+    Id1 = kanaloa_state_server:new_guid(),
+    Owner1 = get_sample_pid(),
+    ok = kanaloa_state_server:new_state(Id1, Owner1),
     
-    ?assertEqual(Entry1, ReceivedEntry1),
-    ?assertEqual(Entry2, ReceivedEntry2),
-    ?assertEqual(Entry3, ReceivedEntry3),
+    Id2 = kanaloa_state_server:new_guid(),
+    Owner2 = get_sample_pid(),
+    ok = kanaloa_state_server:new_state(Id2, Owner2),
+    
+    Id3 = kanaloa_state_server:new_guid(),
+    Owner3 = get_sample_pid(),
+    ok = kanaloa_state_server:new_state(Id3, Owner3),
+    
+    ReceivedOwner2 = kanaloa_state_server:get_owner(Id2),
+    ReceivedOwner1 = kanaloa_state_server:get_owner(Id1),
+    ReceivedOwner3 = kanaloa_state_server:get_owner(Id3),
+    
+    ?assertEqual(Owner1, ReceivedOwner1),
+    ?assertEqual(Owner2, ReceivedOwner2),
+    ?assertEqual(Owner3, ReceivedOwner3),
     
     stop().
 
@@ -77,10 +77,9 @@ remove_on_death_test() ->
     
     Id = kanaloa_state_server:new_guid(),
     Pid = get_sample_pid(),
-    Entry = #kanaloa_connection_state{ id = Id, owner = Pid },
-    ok = kanaloa_state_server:set_state(Entry),
-    {ok, Entry} = kanaloa_state_server:get_state(Id),
-    ?assertEqual(Pid, Entry#kanaloa_connection_state.owner),
+    ok = kanaloa_state_server:new_state(Id, Pid),
+    RPid = kanaloa_state_server:get_owner(Id),
+    ?assertEqual(Pid, RPid),
     
     % Kill the process by sending it a message
     process_flag(trap_exit, true),
@@ -91,7 +90,7 @@ remove_on_death_test() ->
 	M -> io:format("received ~w\n", [M])
     end,
     
-    Result = kanaloa_state_server:get_state(Id),
+    Result = kanaloa_state_server:get_owner(Id),
     ?assertEqual(no_id, Result),
     
     stop().
@@ -100,45 +99,97 @@ remove_single_on_death_test() ->
     {ok, _Server} = start_link(),
     
     Id1 = kanaloa_state_server:new_guid(),
-    Pid1 = get_sample_pid(),
-    Entry1 = #kanaloa_connection_state{ id = Id1, owner = Pid1 },
-    ok = kanaloa_state_server:set_state(Entry1),
-    {ok, ReceivedEntry1} = kanaloa_state_server:get_state(Id1),
-    ?assertEqual(Pid1, ReceivedEntry1#kanaloa_connection_state.owner),
+    Owner1 = get_sample_pid(),
+    ok = kanaloa_state_server:new_state(Id1, Owner1),
+    ROwner1 = kanaloa_state_server:get_owner(Id1),
+    ?assertEqual(Owner1, ROwner1),
     
     Id2 = kanaloa_state_server:new_guid(),
-    Pid2 = get_sample_pid(),
-    Entry2 = #kanaloa_connection_state{ id = Id2, owner = Pid2 },
-    ok = kanaloa_state_server:set_state(Entry2),
-    {ok, ReceivedEntry2} = kanaloa_state_server:get_state(Id2),
-    ?assertEqual(Pid2, ReceivedEntry2#kanaloa_connection_state.owner),
-
+    Owner2 = get_sample_pid(),
+    ok = kanaloa_state_server:new_state(Id2, Owner2),
+    ROwner2 = kanaloa_state_server:get_owner(Id2),
+    ?assertEqual(Owner2, ROwner2),
+    
     Id3 = kanaloa_state_server:new_guid(),
-    Pid3 = get_sample_pid(),
-    Entry3 = #kanaloa_connection_state{ id = Id3, owner = Pid3 },
-    ok = kanaloa_state_server:set_state(Entry3),
-    {ok, ReceivedEntry3} = kanaloa_state_server:get_state(Id3),
-    ?assertEqual(Pid3, ReceivedEntry3#kanaloa_connection_state.owner),
+    Owner3 = get_sample_pid(),
+    ok = kanaloa_state_server:new_state(Id3, Owner3),
+    ROwner3 = kanaloa_state_server:get_owner(Id3),
+    ?assertEqual(Owner3, ROwner3),
     
     % Kill the process by sending it a message
     process_flag(trap_exit, true),
-    link(Pid2),
-    exit(Pid2, kill),
+    link(Owner2),
+    exit(Owner2, kill),
     receive
-	{'EXIT', Pid2, _} -> ok;
+	{'EXIT', Owner2, _} -> ok;
 	M -> io:format("received ~w\n", [M])
     end,
     
     % Verify that only process 2 was removed.
     
-    {ok, ReceivedEntry1_2} = kanaloa_state_server:get_state(Id1),
-    ?assertEqual(Pid1, ReceivedEntry1_2#kanaloa_connection_state.owner),
-
-    Result = kanaloa_state_server:get_state(Id2),
+    ROwner1_2 = kanaloa_state_server:get_owner(Id1),
+    ?assertEqual(Owner1, ROwner1_2),
+    
+    Result = kanaloa_state_server:get_owner(Id2),
     ?assertEqual(no_id, Result),
+    
+    ROwner3_2 = kanaloa_state_server:get_owner(Id1),
+    ?assertEqual(Owner1, ROwner3_2),
 
-    {ok, ReceivedEntry3_2} = kanaloa_state_server:get_state(Id3),
-    ?assertEqual(Pid3, ReceivedEntry3_2#kanaloa_connection_state.owner),
+    stop().
+
+pop_pending_new_test() ->
+    {ok, _Server} = start_link(),
+    
+    Id1 = kanaloa_state_server:new_guid(),
+    Owner1 = get_sample_pid(),
+    ok = kanaloa_state_server:new_state(Id1, Owner1),
+    
+    Pop1 = kanaloa_state_server:pop_pending(Id1),
+    ?assertEqual([], Pop1),
+    
+    stop().
+
+add_pending_test() ->
+    {ok, _Server} = start_link(),
+    
+    Id1 = kanaloa_state_server:new_guid(),
+    Owner1 = get_sample_pid(),
+    ok = kanaloa_state_server:new_state(Id1, Owner1),
+    
+    Pending1 = [<<"foo">>, <<"bar">>],
+    Add1 = kanaloa_state_server:add_pending(Id1, Pending1),
+    ?assertEqual(ok, Add1),
+    
+    Pop1 = kanaloa_state_server:pop_pending(Id1),
+    ?assertEqual(Pending1, Pop1),
+
+    Pop2 = kanaloa_state_server:pop_pending(Id1),
+    ?assertEqual([], Pop2),
+    
+    stop().
+
+add_pending_additional_test() ->
+    {ok, _Server} = start_link(),
+    
+    Id1 = kanaloa_state_server:new_guid(),
+    Owner1 = get_sample_pid(),
+    ok = kanaloa_state_server:new_state(Id1, Owner1),
+    
+    Pending1 = [<<"foo">>, <<"bar">>],
+    Add1 = kanaloa_state_server:add_pending(Id1, Pending1),
+    ?assertEqual(ok, Add1),
+    
+    Pending2 = [<<"baz">>],
+    Add2 = kanaloa_state_server:add_pending(Id1, Pending2),
+    ?assertEqual(ok, Add2),
+    
+    Pop1 = kanaloa_state_server:pop_pending(Id1),
+    PendingR = [<<"foo">>, <<"bar">>, <<"baz">>],
+    ?assertEqual(PendingR, Pop1),
+    
+    Pop2 = kanaloa_state_server:pop_pending(Id1),
+    ?assertEqual([], Pop2),
     
     stop().
 
