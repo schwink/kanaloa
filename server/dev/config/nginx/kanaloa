@@ -20,8 +20,13 @@ server {
 		autoindex on;
 	}
 
-	location /doc/kanaloa-web/ {
-		alias /home/dev/code/kanaloa/server/mochiweb/doc/;
+	location /kanaloa/test/ {
+		alias /usr/share/kanaloa/0.01/test/;
+		autoindex on;
+	}
+
+	location /kanaloa/doc/ {
+		alias /usr/share/doc/kanaloa/html/;
 		index index.html index.htm;
 		autoindex on;
 	}
