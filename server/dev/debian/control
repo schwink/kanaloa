@@ -8,6 +8,6 @@ Homepage:
 
 Package: kanaloa-dev
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, build-essential, debhelper, devscripts, emacs23-nox, erlang-dev, erlang-mode, erlang-nox, erlang-manpages, erlang-tools, fakeroot, nginx, python-setuptools, kanaloa, kanaloa-client-web
+Depends: ${shlibs:Depends}, ${misc:Depends}, build-essential, debhelper, devscripts, emacs23-nox, erlang-dev, erlang-mode, erlang-nox, erlang-manpages, erlang-tools, fakeroot, jsdoc-toolkit, nginx, python-setuptools, kanaloa, kanaloa-client-web
 Suggests: 
 Description: Metapackage for setting up a kanaloa development machine.

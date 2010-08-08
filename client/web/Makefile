@@ -1,21 +1,28 @@
 NAME = kanaloa-client-web
 VERSION = 0.01
+DEST_SHARE = $(DESTDIR)/usr/share/$(NAME)/$(VERSION)
 DEST_SHARE_JS = $(DESTDIR)/usr/share/javascript/kanaloa/$(VERSION)
-DEST_SHARE_KANALOA = $(DESTDIR)/usr/share/kanaloa/$(VERSION)
+DEST_SHARE_DOC = $(DESTDIR)/usr/share/doc/$(NAME)/$(VERSION)/html
 
 build:
 	/bin/true
 
 clean:
-	/bin/true
+	rm -rf doc
 
 force:
+
+doc: force
+	mkdir doc || true
+	jsdoc -d=doc -a src/kanaloa.js
 
 install:
 	mkdir -p $(DEST_SHARE_JS) || true
 	cp -r src/* $(DEST_SHARE_JS)/
-	mkdir -p $(DEST_SHARE_KANALOA)/test/ || true
-	cp -r test/* $(DEST_SHARE_KANALOA)/test/
+	mkdir -p $(DEST_SHARE)/test/ || true
+	cp -r test/* $(DEST_SHARE)/test/
+	mkdir -p $(DEST_SHARE_DOC) || true
+	cp -r doc/* $(DEST_SHARE_DOC)/
 
 package: force
 #	Increment the version number

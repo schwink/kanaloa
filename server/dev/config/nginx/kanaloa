@@ -25,8 +25,14 @@ server {
 		autoindex on;
 	}
 
-	location /kanaloa/doc/ {
-		alias /usr/share/doc/kanaloa/html/;
+	location /kanaloa/doc/server/ {
+		alias /usr/share/doc/kanaloa/0.01/html/;
+		index index.html index.htm;
+		autoindex on;
+	}
+
+	location /kanaloa/doc/client/ {
+		alias /usr/share/doc/kanaloa-client-web/0.01/html/;
 		index index.html index.htm;
 		autoindex on;
 	}

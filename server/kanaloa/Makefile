@@ -3,7 +3,7 @@ VERSION = 0.01
 DEST = $(DESTDIR)/usr/lib/erlang/lib/$(NAME)-$(VERSION)
 DEST_EBIN = $(DEST)/ebin
 DEST_INCLUDE = $(DEST)/include
-DEST_DOC=$(DESTDIR)/usr/share/doc/$(NAME)/html
+DEST_DOC=$(DESTDIR)/usr/share/doc/$(NAME)/$(VERSION)/html
 
 all: ebin/
 	(cd src;$(MAKE) all)

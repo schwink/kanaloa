@@ -1,1 +1,11 @@
 HTTP JSON streaming framework for Erlang and JavaScript.
+
+Debian package dependencies:
+
+mochiweb (for kanaloa)
+http://github.com/mochi/mochiweb
+deb http://apt.schwink.net/ubuntu karmic main
+
+jsdoc-toolkit (for kanaloa-dev)
+http://code.google.com/p/jsdoc-toolkit/
+deb http://ppa.launchpad.net/flacoste/ppa/ubuntu hardy main
