@@ -1,7 +1,7 @@
 %% @author Stephen Schwink <kanaloa@schwink.net>
 %% @copyright 2010 Stephen Schwink.
 
-%% @doc Test kanaloa application.
+%% @doc Test kanaloa application. This is used by the client tests.
 
 -module(start_kanaloa).
 -author('Stephen Schwink <kanaloa@schwink.net>').
@@ -33,7 +33,7 @@ handle_connection(Connection) ->
 	% We need to handle these first to prevent sending data to a dead response.
 	
 	{connection, NewConnection} ->
-	    NewConnection:log("Handler replacing live connection.", []),
+	    NewConnection:log("Owner replacing live connection.", []),
 	    new_connection(Connection, NewConnection);
 	
 	{'EXIT', _Owner, _Reason} ->
@@ -46,15 +46,15 @@ handle_connection(Connection) ->
 
 %% @doc Control comes here while we wait for the client to reconnect.
 handle_orphaned(OldConnection) ->
-    OldConnection:log("Handler orphaned.", []),
+    OldConnection:log("Owner orphaned.", []),
     
     receive
 	{connection, NewConnection} ->
-	    NewConnection:log("Handler is un-orphaned.", []),
+	    NewConnection:log("Owner is un-orphaned.", []),
 	    new_connection(OldConnection, NewConnection)
     
     after ?CONNECTION_ORPHAN_TIMEOUT ->
-	    OldConnection:log("Didn't get a new connection in time, the handler dies.", []),
+	    OldConnection:log("Didn't get a new connection in time, the owner dies.", []),
 	    orphaned
     end.
 
@@ -66,19 +66,28 @@ receive_normal(Connection) ->
     receive
 	% Continue to listen for the high-priority events, even if they weren't in the queue initially.
 	{connection, NewConnection} ->
-	    NewConnection:log("Handler replacing live connection.", []),
+	    NewConnection:log("Owner replacing live connection.", []),
 	    new_connection(Connection, NewConnection);
 	{'EXIT', _Owner, _Reason} ->
 	    handle_orphaned(Connection);
 
-	% React to messages from Kanaloa and from your application.
+	% React to messages from Kanaloa and from your application:
+	
+	{chunk, <<"kill_owner">>} ->
+	    % This will cause the owner process to exit and the connection to die.
+	    % Used by the integration tests.
+	    Connection:log("Client instructs the owner to exit.", []),
+	    kill_owner;
+	
 	{chunk, Data} ->
-	    Connection:log("Handler got a chunk! '~w'", [Data]),
+	    Connection:log("Owner got a chunk from the client: '~w'", [Data]),
 	    
-	    Reply = <<"Got your message, which is re-encoded as:">>,
-	    BodyText = mochijson2:encode(Data),
-	    BodyBinary = iolist_to_binary(BodyText),
-	    Connection:send(<<Reply/binary, BodyBinary/binary>>),
+	    Now = kanaloa_utils:now_utc_ms(),
+	    JsonObj = {struct, [
+				{time, Now},
+				{message, Data}
+			       ]},
+	    Connection:send(JsonObj),
 	    
 	    handle_connection(Connection)
     

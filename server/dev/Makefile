@@ -11,7 +11,7 @@ clean:
 force:
 
 install:
-	mkdir -p $(NGINX_SITES_AVAILABLE)
+	@mkdir -p $(NGINX_SITES_AVAILABLE)
 	cp config/nginx/kanaloa $(NGINX_SITES_AVAILABLE)/
 
 package: force

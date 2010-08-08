@@ -18,11 +18,11 @@ doc: force
 
 install:
 	mkdir -p $(DEST_SHARE_JS) || true
-	cp -r src/* $(DEST_SHARE_JS)/
+	@cp -r src/* $(DEST_SHARE_JS)/
 	mkdir -p $(DEST_SHARE)/test/ || true
-	cp -r test/* $(DEST_SHARE)/test/
+	@cp -r test/* $(DEST_SHARE)/test/
 	mkdir -p $(DEST_SHARE_DOC) || true
-	cp -r doc/* $(DEST_SHARE_DOC)/
+	@cp -r doc/* $(DEST_SHARE_DOC)/
 
 package: force
 #	Increment the version number

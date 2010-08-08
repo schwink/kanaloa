@@ -31,11 +31,11 @@ ebin/:
 	@mkdir -p ebin
 
 install:
-	mkdir -p $(DEST_EBIN) || true
+	@mkdir -p $(DEST_EBIN) || true
 	cp ebin/* $(DEST_EBIN)
-	mkdir -p $(DEST_INCLUDE) || true
+	@mkdir -p $(DEST_INCLUDE) || true
 	cp include/*.hrl $(DEST_INCLUDE)
-	mkdir -p $(DEST_DOC) || true
+	@mkdir -p $(DEST_DOC) || true
 	cp doc/* $(DEST_DOC) || true
 
 package: force

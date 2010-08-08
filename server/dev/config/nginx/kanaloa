@@ -21,7 +21,7 @@ server {
 	}
 
 	location /kanaloa/test/ {
-		alias /usr/share/kanaloa/0.01/test/;
+		alias /usr/share/kanaloa-client-web/0.01/test/;
 		autoindex on;
 	}
 

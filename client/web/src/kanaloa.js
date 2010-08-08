@@ -113,7 +113,7 @@ KanaloaConnection.prototype._connect = function() {
 	connection._bumpIncoming(statusCode);
 	connection.settings.bumpIncoming(statusCode);
 	connection._logDebug("Waiting " + connection.settings.incomingWait + " ms before reconnect.");
-	setTimeout(function() { connection.connect(); }, connection.settings.incomingWait);
+	setTimeout(function() { connection._connect(); }, connection.settings.incomingWait);
     }
     
     var receiver = new _KanaloaHttpPost(this.server + "/" + this.settings.connectionSuffix,
