@@ -13,7 +13,7 @@ clean:
 force:
 
 doc: force
-	mkdir doc || true
+	@mkdir doc 2>/dev/null || true
 	jsdoc -d=doc -a src/kanaloa.js
 
 install:

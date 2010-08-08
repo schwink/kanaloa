@@ -1,3 +1,10 @@
+// Copyright 2010 Stephen Schwink. All Rights Reserved.
+
+/**
+   @fileoverview Include this file to define the KanaloaConnection class.
+   Create instances of this class to communicate with the kanaloa server.
+   @author kanaloa@schwink.net (Stephen Schwink)
+*/
 
 (function() {
 
@@ -17,15 +24,12 @@ function stringTrim(str) {
     return str.replace(/^\s*/, "").replace(/\s*$/, "");
 };
 
-/// Top-level user-facing abstraction of all Kanaloa client functionality.
-/// Parameters:
-/// server -- The url of the Kanaloa service to connect to.
-/// Methods:
-/// send(data) -- Sends a JavaScript term to the server.
-/// Properties:
-/// onReceive -- Invoked when a message is received from the server. function(data)
-/// onConnectionLost -- Invoked when an application-level timeout occurs. The server process that is handling this client has died. function()
-this.KanaloaConnection = function(server) {
+/**
+ * Top-level user-facing abstraction of all Kanaloa client functionality.
+ * @param {string} server The url of the Kanaloa service to connect to.
+ * @constructor
+ */
+this.KanaloaConnection = function(/** String */ server) {
     this.settings = new _KanaloaHttpSettings();
     this.server = server;
     this.connectionId = null;
@@ -33,31 +37,49 @@ this.KanaloaConnection = function(server) {
     this._receiver = null;
     this._sendBatcher = null;
     
-    this.onReceive = function(data) { };
-    this.onConnectionLost = function() { };
-    this.onDebugEvent = function(message) { };
-    
-    this.connect();
+    this._connect();
 };
 
+/**
+ * Set this property to handle messages when they are received from the server.
+ * @param {Object} data The message received from the server.
+ */
+KanaloaConnection.prototype.onReceive = function(data) { };
+
+/**
+ * Set this property to handle application-level timeouts.
+ * Invoked when the server process that is handling this client has died and will never be reconnected.
+ */
+KanaloaConnection.prototype.onConnectionLost = function() { };
+
+/**
+ * Set this property to handle local debug events.
+ * @param {string} message A description of something going on in the client.
+ */
+KanaloaConnection.prototype.onDebugEvent = function(message) { };
+
+/** @private */
 KanaloaConnection.prototype._reportReceive = function(data) {
     if (this.onReceive) {
 	this.onReceive(data);
     }
 };
 
+/** @private */
 KanaloaConnection.prototype._reportConnectionLost = function() {
     if (this.onConnectionLost) {
 	this.onConnectionLost();
     }
 };
 
+/** @private */
 KanaloaConnection.prototype._logDebug = function(message) {
     if (this.onDebugEvent) {
 	this.onDebugEvent("Connection: " + message);
     }
 };
 
+/** @private */
 KanaloaConnection.prototype._bumpIncoming = function(statusCode) {
     if (statusCode == 410) {
 	// GONE
@@ -66,12 +88,14 @@ KanaloaConnection.prototype._bumpIncoming = function(statusCode) {
     }
 };
 
+/** @private */
 KanaloaConnection.prototype._bumpOutgoing = function(statusCode) {
     // Same thing.
     this._bumpIncoming(statusCode);
 };
 
-KanaloaConnection.prototype.connect = function() {
+/** @private */
+KanaloaConnection.prototype._connect = function() {
     var connection = this;
     connection._logDebug("Using stream mode? " + connection.settings.isStreamMode);
     
@@ -106,6 +130,10 @@ KanaloaConnection.prototype.connect = function() {
     receiver.send("");
 };
 
+/**
+ * Sends a JavaScript term to the server.
+ * @param {object} data The item to send.
+ */
 KanaloaConnection.prototype.send = function(data) {
     if (this._sendBatcher == null) {
 	var connection = this;
