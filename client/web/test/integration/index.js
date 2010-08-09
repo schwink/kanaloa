@@ -1,27 +1,22 @@
 $(document).ready(function(){
 	
-	test("a basic test example", function() {
-		ok( true, "this test is fine" );
-		var value = "hello";
-		equals( "hello", value, "We expect value to be hello" );
+	asyncTest("basic connect and disconnect", 4, function() {
+		var connection = new KanaloaConnection("/kanaloa/testsvc/");
+		
+		connection.onConnectionOpened = function() {
+		    ok( true, "onConnectionOpened callback received" );
+		    ok( (connection.connectionId), "connectionId has been set" );
+		    
+		    connection.disconnect();
+		};
+		
+		connection.onConnectionClosed = function() {
+		    ok( true, "onConnectionClosed callback received" );
+		    equals( connection.connectionId, null, "connectionId has been unset" );
+		    
+		    start();
+		};
+		
+		connection.connect();
 	    });
-	
-	module("Module A");
-	
-	test("first test within module", function() {
-		ok( true, "all pass" );
-	    });
-	
-	test("second test within module", function() {
-		ok( true, "all pass" );
-	    });
-	
-	module("Module B");
-	
-	test("some other test", function() {
-		expect(2);
-		equals( true, false, "failing test" );
-		equals( true, true, "passing test" );
-	    });
-	
     });

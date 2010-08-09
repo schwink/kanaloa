@@ -30,27 +30,32 @@ function stringTrim(str) {
  * @constructor
  */
 this.KanaloaConnection = function(/** String */ server) {
-    this.settings = new _KanaloaHttpSettings();
+    this.settings = new _KanaloaHttpSettings(); 
     this.server = server;
     this.connectionId = null;
     
     this._receiver = null;
     this._sendBatcher = null;
     
-    this._connect();
+    this.connect();
 };
+
+/**
+ * Set this property to be notified when the connection opens.
+ */
+KanaloaConnection.prototype.onConnectionOpened = function() { };
 
 /**
  * Set this property to handle messages when they are received from the server.
  * @param {Object} data The message received from the server.
  */
-KanaloaConnection.prototype.onReceive = function(data) { };
+KanaloaConnection.prototype.onDataReceived = function(data) { };
 
 /**
- * Set this property to handle application-level timeouts.
- * Invoked when the server process that is handling this client has died and will never be reconnected.
+ * Set this property to be notified when the connection closes.
+ * Invoked when the connection between the client and the server will never be reconnected.
  */
-KanaloaConnection.prototype.onConnectionLost = function() { };
+KanaloaConnection.prototype.onConnectionClosed = function() { };
 
 /**
  * Set this property to handle local debug events.
@@ -59,16 +64,23 @@ KanaloaConnection.prototype.onConnectionLost = function() { };
 KanaloaConnection.prototype.onDebugEvent = function(message) { };
 
 /** @private */
-KanaloaConnection.prototype._reportReceive = function(data) {
-    if (this.onReceive) {
-	this.onReceive(data);
+KanaloaConnection.prototype._reportConnectionOpened = function() {
+    if (this.onConnectionOpened) {
+	this.onConnectionOpened();
     }
 };
 
 /** @private */
-KanaloaConnection.prototype._reportConnectionLost = function() {
-    if (this.onConnectionLost) {
-	this.onConnectionLost();
+KanaloaConnection.prototype._reportDataReceived = function(data) {
+    if (this.onDataReceived) {
+	this.onDataReceived(data);
+    }
+};
+
+/** @private */
+KanaloaConnection.prototype._reportConnectionClosed = function() {
+    if (this.onConnectionClosed) {
+	this.onConnectionClosed();
     }
 };
 
@@ -83,52 +95,95 @@ KanaloaConnection.prototype._logDebug = function(message) {
 KanaloaConnection.prototype._bumpIncoming = function(statusCode) {
     if (statusCode == 410) {
 	// GONE
-	this.connectionId = null;
-	this._reportConnectionLost();
+	this.disconnect();
+	return false;
     }
+    
+    this.settings.bumpIncoming(statusCode);
+    return true;
 };
 
 /** @private */
 KanaloaConnection.prototype._bumpOutgoing = function(statusCode) {
-    // Same thing.
-    this._bumpIncoming(statusCode);
+    if (statusCode == 410) {
+	// GONE
+	this.disconnect();
+	return false;
+    }
+    
+    this.settings.bumpOutgoing(statusCode);
+    return true;
 };
 
-/** @private */
-KanaloaConnection.prototype._connect = function() {
+/**
+ * Connect to the server. This is called automatically for you.
+ */
+KanaloaConnection.prototype.connect = function() {
     var connection = this;
+    
+    if (connection._receiver) {
+	connection._logDebug("A receiver already exists, not trying to reconnect.");
+	return;
+    }
+    
     connection._logDebug("Using stream mode? " + connection.settings.isStreamMode);
     
     function connectionOpened(receiverPost) {
 	connection._logDebug("Opened");
 	
 	// Now that we have the ConnectionId, we can begin transmitting outgoing posts.
+	var firstOpened = (connection.connectionId == null);
 	connection.connectionId = receiverPost.connectionId;
+	if (firstOpened) {
+	    connection._reportConnectionOpened();
+	}
 	connection.send();
     }
 
     function connectionClosed(receiverPost, statusCode) {
 	connection._logDebug("Closed with status: " + statusCode);
 	
-	connection._bumpIncoming(statusCode);
-	connection.settings.bumpIncoming(statusCode);
-	connection._logDebug("Waiting " + connection.settings.incomingWait + " ms before reconnect.");
-	setTimeout(function() { connection._connect(); }, connection.settings.incomingWait);
+	if (connection._bumpIncoming(statusCode)) {
+	    connection._logDebug("Waiting " + connection.settings.incomingWait + " ms before reconnect.");
+	    receiverPost.reconnectTimeout = setTimeout(function() { connection.connect(); }, connection.settings.incomingWait);
+	}
     }
     
     var receiver = new _KanaloaHttpPost(this.server + "/" + this.settings.connectionSuffix,
-				       this.connectionId,
-				       this.settings.contentType,
-				       this.settings.isStreamMode,
-				       function() { connectionOpened(this); },
-				       function(data) { connection._reportReceive(data); },
-				       function(httpStatusCode) { connectionClosed(this, httpStatusCode); },
-				       function(message) { connection._logDebug(message); }
-				       );
+					this.connectionId,
+					this.settings.contentType,
+					this.settings.isStreamMode,
+					function() { connectionOpened(this); },
+					function(data) { connection._reportDataReceived(data); },
+					function(httpStatusCode) { connectionClosed(this, httpStatusCode); },
+					function(message) { connection._logDebug(message); }
+					);
     this._receiver = receiver;
     
-    receiver.send("");
+    receiver.send();
 };
+
+/**
+ * Connect to the server. This is called automatically for you.
+ */
+KanaloaConnection.prototype.disconnect = function() {
+    var connection = this;
+    connection._logDebug("Closing the connection");
+    
+    if (connection._receiver) {
+	connection._receiver.disconnect();
+	clearTimeout(connection._receiver.reconnectTimeout);
+	connection._receiver = null;
+    }
+    
+    if (connection._sendBatcher) {
+	connection._sendBatcher.close();
+	connection._sendBatcher = null;
+    }
+    
+    connection.connectionId = null;
+    connection._reportConnectionClosed();
+}
 
 /**
  * Sends a JavaScript term to the server.
@@ -138,8 +193,8 @@ KanaloaConnection.prototype.send = function(data) {
     if (this._sendBatcher == null) {
 	var connection = this;
 	this._sendBatcher = new _KanaloaHttpSendBatcher(this,
-						       function(message) { connection._logDebug(message); }
-						       );
+							function(message) { connection._logDebug(message); }
+							);
     }
     
     // Let's stringify the data now so it is immutable.
@@ -176,7 +231,10 @@ _KanaloaHttpSettings.prototype.reset = function() {
 };
 
 _KanaloaHttpSettings.prototype.bumpIncoming = function(statusCode) {
-    if (statusCode != 200) {
+    if (statusCode == 200) {
+	this.incomingWait = KANALOA_WAIT_INCOMING_BASE;
+    }
+    else {
 	if (this.incomingWait == KANALOA_WAIT_INCOMING_BASE) {
 	    this.incomingWait = 1000;
 	}
@@ -187,7 +245,10 @@ _KanaloaHttpSettings.prototype.bumpIncoming = function(statusCode) {
 };
 
 _KanaloaHttpSettings.prototype.bumpOutgoing = function(statusCode) {
-    if (statusCode != 200) {
+    if (statusCode == 200) {
+	this.outgoingWait = KANALOA_WAIT_OUTGOING_BASE;
+    }
+    else {
 	if (this.outgoingWait == KANALOA_WAIT_OUTGOING_BASE) {
 	    this.outgoingWait = 1000;
 	}
@@ -211,6 +272,14 @@ _KanaloaHttpSendBatcher.prototype._logDebug = function(message) {
 	this._onDebugEvent("HttpSendBatcher: " + message);
     }
 };
+
+_KanaloaHttpSendBatcher.prototype.close = function() {
+    if (this._post) {
+	this._post.disconnect();
+	clearTimeout(this._post.reconnectTimeout);
+	this._post = null;
+    }
+}
 
 _KanaloaHttpSendBatcher.prototype.send = function(data) {
     if (data) {
@@ -250,14 +319,13 @@ _KanaloaHttpSendBatcher.prototype._sendPost = function() {
 	}
 
 	// Loop to pick up accumulated messages.
-	connection._bumpOutgoing(statusCode);
-	connection.settings.bumpOutgoing(statusCode);
-	connection._logDebug("Waiting " + connection.settings.outgoingWait + " ms before reconnect.");
-	setTimeout(function() { batcher._sendPost(); }, connection.settings.outgoingWait);
+	if (connection._bumpOutgoing(statusCode)) {
+	    connection._logDebug("Waiting " + connection.settings.outgoingWait + " ms before reconnect.");
+	    post.reconnectTimeout = setTimeout(function() { batcher._sendPost(); }, connection.settings.outgoingWait);
+	}
     }
     
     this._logDebug("There is no active post; creating a new one.");
-    // TODO: Reuse existing post or remove post reconnect logic.
     var post = new _KanaloaHttpPost(connection.server,
 				   connection.connectionId,
 				   connection.settings.contentType,
@@ -340,14 +408,8 @@ _KanaloaHttpPost.prototype.isActive = function() {
 
 _KanaloaHttpPost.prototype.connect = function() {
     if (this._request) {
-	if (this._request.readyState == READYSTATE_UNSENT) {
-	    this._logDebug("Connect: Using existing request.");
-	    return false;
-	}
-
 	this._logDebug("Connect: Aborting existing request.");
-	this._request.abort();
-	this._request = null;
+	this.disconnect();
     }
     
     this._logDebug("Connect: Creating new request.");
@@ -377,8 +439,10 @@ _KanaloaHttpPost.prototype.connect = function() {
 	    }
 	    
 	    connection._logDebug("status is \"" + request.status + "\"");
-
-	    connection._reportOpen();
+	    
+	    if (request.status == 200) {
+		connection._reportOpen();
+	    }
 	}
 	
 	if ((connection._isStreamMode && readyState == READYSTATE_LOADING) ||
@@ -421,6 +485,14 @@ _KanaloaHttpPost.prototype.connect = function() {
     }
     
     return true;
+};
+
+_KanaloaHttpPost.prototype.disconnect = function() {
+    if (this._request) {
+	this._logDebug("disconnect aborting existing request");
+	this._request.abort();
+	this._request = null;
+    }
 };
 
 _KanaloaHttpPost.prototype.send = function(data) {
