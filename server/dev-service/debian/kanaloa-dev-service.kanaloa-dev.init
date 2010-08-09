@@ -6,7 +6,7 @@
 # Required-Stop:     $all
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: A test service for the kanaloa library.
+# Short-Description: A sample application using the the kanaloa library.
 ### END INIT INFO
 
 set -u
@@ -23,7 +23,7 @@ start_erl () {
     start-stop-daemon --start \
 	--pidfile $PIDFILE \
 	--chuid $USR \
-	--exec $DAEMON -- -daemon /tmp/ /var/log/$NAME/ "/usr/bin/kanaloa_test_app -n $DESC -p 8001"
+	--exec $DAEMON -- -daemon /tmp/ /var/log/$NAME/ "/usr/bin/kanaloa-test-app -n $DESC -p 8001"
 }
 
 set -e

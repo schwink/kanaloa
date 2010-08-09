@@ -1,5 +1,5 @@
 Source: kanaloa-client-web
-Section: unknown
+Section: web
 Priority: extra
 Maintainer: Steve <steve@schwink.net>
 Build-Depends: debhelper (>= 7), devscripts

@@ -42,8 +42,8 @@ install: build
 	dh_prep  
 	dh_installdirs
 
-	# Add here commands to install the package into debian/kanaloa-dev.
-	$(MAKE) DESTDIR=$(CURDIR)/debian/kanaloa-dev install
+	# Add here commands to install the package into debian/kanaloa-dev-service.
+	$(MAKE) DESTDIR=$(CURDIR)/debian/kanaloa-dev-service install
 
 
 # Build architecture-independent files here.
@@ -65,7 +65,7 @@ binary-arch: install
 #	dh_installpam
 #	dh_installmime
 #	dh_python
-#	dh_installinit
+	dh_installinit --name=kanaloa-dev
 #	dh_installcron
 #	dh_installinfo
 #	dh_installman

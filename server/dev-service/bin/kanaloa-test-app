@@ -4,7 +4,7 @@ set -e
 #set -x
 
 die () {
-    echo >&2 "usage: kanaloa_test_app -n sname -p portNum [-d]"
+    echo >&2 "usage: kanaloa-test-app -n sname -p portNum [-d]"
     exit 1
 }
 
@@ -35,11 +35,11 @@ done
 [[ $SNAME != "" ]] || die
 [[ $PORTNUM != "" ]] || die
 
-# Set up the HOME environment variable, which erl expects
-export HOME=/tmp/
+# Set up the HOME environment variable, which erl expects.
+# The cookie file will be put here.
+export HOME=/var/log/kanaloa-dev/
 
-# CHANGE THIS TO YOUR CODE DIRECTORY
-RUNDIR=/home/dev/code/kanaloa/server/kanaloa/
+RUNDIR=$HOME
 cd $RUNDIR
 exec erl \
     -pa $RUNDIR/tbin/ \

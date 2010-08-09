@@ -1,5 +1,5 @@
 #! /bin/sh
-# postinst script for kanaloa-dev
+# postinst script for kanaloa-dev-service
 #
 # see: dh_installdeb(1)
 

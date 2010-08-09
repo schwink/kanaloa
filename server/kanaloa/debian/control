@@ -1,5 +1,5 @@
 Source: kanaloa
-Section: unknown
+Section: web
 Priority: extra
 Maintainer: Steve <steve@schwink.net>
 Build-Depends: debhelper (>= 7), devscripts
@@ -8,6 +8,6 @@ Homepage:
 
 Package: kanaloa
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, erlang-nox, mochiweb, uuid
-Suggests: 
+Depends: ${misc:Depends}, erlang-nox, mochiweb, uuid
+Suggests: kanaloa-dev, kanaloa-dev-service
 Description: The Kanaloa web streaming framework.
