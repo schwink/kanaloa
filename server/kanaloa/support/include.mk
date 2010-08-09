@@ -18,7 +18,9 @@ ifdef debug
   ERLC_FLAGS += -Ddebug
 endif
 
-# TODO: ERLC +native
+ifdef native
+  ERLC_FLAGS += +native
+endif
 
 EBIN_DIR := ../ebin
 TBIN_DIR := ../tbin
@@ -42,7 +44,6 @@ $(EBIN_DIR)/%.$(EMULATOR): %.erl
 	$(ERLC) $(ERLC_FLAGS) -o $(EBIN_DIR) $<
 
 $(TBIN_DIR)/%.$(EMULATOR): %.erl
-	@mkdir -p $(TBIN_DIR) || true
 	$(ERLC) $(ERLC_FLAGS) -o $(TBIN_DIR) $<
 
 ./%.$(EMULATOR): %.erl

@@ -9,12 +9,14 @@ all: ebin/
 	(cd src;$(MAKE) all)
 	(cd test;$(MAKE) all)
 
-force:
+# This requires the erlang-base-hipe package.
+hipe: ebin/
+	(cd src;$(MAKE) all native=true)
 
-doc: force
+doc:
 	(cd src;$(MAKE) edoc)
 
-test: force
+test: tbin/
 	(cd src;$(MAKE) test)
 
 clean:
@@ -30,6 +32,9 @@ dialyzer:
 ebin/:
 	@mkdir -p ebin
 
+tbin/:
+	@mkdir -p tbin
+
 install:
 	@mkdir -p $(DEST_EBIN) || true
 	cp ebin/* $(DEST_EBIN)
@@ -38,7 +43,7 @@ install:
 	@mkdir -p $(DEST_DOC) || true
 	cp doc/* $(DEST_DOC) || true
 
-package: force
+package:
 #	Increment the version number
 	dch  --newversion $(VERSION)-1-`date +"%Y%m%d%H%M%S"` "Local build"
 	dpkg-buildpackage -rfakeroot -b -uc -tc
