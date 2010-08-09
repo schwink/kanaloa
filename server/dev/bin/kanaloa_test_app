@@ -1,0 +1,49 @@
+#!/bin/bash
+
+set -e
+#set -x
+
+die () {
+    echo >&2 "usage: kanaloa_test_app -n sname -p portNum [-d]"
+    exit 1
+}
+
+ARGS=""
+PERSIST="false"
+while getopts  "n:p:ds" flag
+do
+    #echo "$flag" $OPTIND $OPTARG
+    case $flag in
+	"n")
+	    SNAME=$OPTARG
+	    ;;
+	
+	"p")
+	    [[ $OPTARG != *[^0-9]* ]] || die
+	    PORTNUM=$OPTARG
+	    ;;
+	
+	"d")
+	    ARGS="-detached -noinput"
+	    ;;
+
+	*)
+	    die
+    esac
+done
+
+[[ $SNAME != "" ]] || die
+[[ $PORTNUM != "" ]] || die
+
+# Set up the HOME environment variable, which erl expects
+# CHANGE THIS TO YOUR CODE DIRECTORY
+RUNDIR=/home/dev/code/kanaloa/server/kanaloa/
+export HOME=$RUNDIR
+
+cd $RUNDIR
+exec erl \
+    -pa $RUNDIR/tbin/ \
+    -sname $SNAME \
+    -boot start_sasl -s reloader -s test_app \
+    -test_app port $PORTNUM \
+    +K true +P 100000 $ARGS
