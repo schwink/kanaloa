@@ -22,7 +22,7 @@ install:
 	@mkdir -p $(DEST_NGINX) || true
 	cp config/nginx/kanaloa-dev $(DEST_NGINX)/
 
-package:
+deb:
 #	Increment the version number
 	dch  --newversion $(VERSION)-1-`date +"%Y%m%d%H%M%S"` "Local build"
 	dpkg-buildpackage -rfakeroot -b -uc -tc

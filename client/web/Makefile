@@ -24,7 +24,7 @@ install:
 	mkdir -p $(DEST_SHARE_DOC) || true
 	@cp -r doc/* $(DEST_SHARE_DOC)/ || true
 
-package:
+deb:
 #	Increment the version number
 	dch  --newversion $(VERSION)-1-`date +"%Y%m%d%H%M%S"` "Local build"
 	dpkg-buildpackage -rfakeroot -b -uc -tc
