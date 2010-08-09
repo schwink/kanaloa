@@ -5,17 +5,13 @@ DEST_SHARE_JS = $(DESTDIR)/usr/share/javascript/kanaloa/$(VERSION)
 DEST_SHARE_DOC = $(DESTDIR)/usr/share/doc/$(NAME)/$(VERSION)/html
 
 build: out/
-	cp src/kanaloa.js out/
-	yuicompressor -o out/kanaloa.min.js out/kanaloa.js
+	(cd src; $(MAKE) all)
 
-force:
-
-doc: force
-	jsdoc -d=doc -a src/kanaloa.js
+doc:
+	(cd src; $(MAKE) doc)
 
 clean:
-	rm -rf out
-	rm -rf doc
+	(cd src; $(MAKE) clean)
 
 out/:
 	@mkdir -p out
@@ -23,10 +19,10 @@ out/:
 install:
 	mkdir -p $(DEST_SHARE_JS) || true
 	@cp -r out/* $(DEST_SHARE_JS)/
-	mkdir -p $(DEST_SHARE)/test/ || true
+	mkdir -p $(DEST_SHARE)/test || true
 	@cp -r test/* $(DEST_SHARE)/test/
 	mkdir -p $(DEST_SHARE_DOC) || true
-	@cp -r doc/* $(DEST_SHARE_DOC)/
+	@cp -r doc/* $(DEST_SHARE_DOC)/ || true
 
 package:
 #	Increment the version number
