@@ -1,0 +1,77 @@
+#! /bin/sh
+
+### BEGIN INIT INFO
+# Provides:          kanaloa-dev
+# Required-Start:    $all
+# Required-Stop:     $all
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: A test service for the kanaloa library.
+### END INIT INFO
+
+set -u
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+DAEMON=/usr/bin/run_erl
+NAME=kanaloa-dev
+DESC=kanaloa0@localhost
+USR=kanaloadev
+PIDFILE=/var/run/$NAME
+ULIMIT_NOFILE=102400
+
+start_erl () {
+    start-stop-daemon --start \
+	--pidfile $PIDFILE \
+	--chuid $USR \
+	--exec $DAEMON -- -daemon /tmp/ /var/log/$NAME/ "/usr/bin/kanaloa_test_app -n $DESC -p 8001"
+}
+
+set -e
+
+. /lib/lsb/init-functions
+
+case "$1" in
+  start)
+	echo -n "Starting $DESC: "
+	pgrep -f $DESC > $PIDFILE || true
+	ulimit -n $ULIMIT_NOFILE || true
+	start_erl || true
+	sleep 2
+	echo "$NAME."
+	;;
+  stop)
+	echo -n "Stopping $DESC: "
+	pgrep -f $DESC > $PIDFILE || true
+	start-stop-daemon --stop \
+	    --pidfile $PIDFILE || true
+	echo "$NAME."
+	;;
+  restart|force-reload)
+	echo -n "Restarting $DESC: "
+	ulimit -n $ULIMIT_NOFILE || true
+	pgrep -f $DESC > $PIDFILE || true
+	start-stop-daemon --stop \
+	    --pidfile $PIDFILE || true
+	sleep 1
+	pgrep -f $DESC > $PIDFILE || true
+	start_erl || true
+	sleep 2
+	echo "$NAME."
+	;;
+  status)
+	# http://refspecs.freestandards.org/LSB_3.1.0/LSB-Core-generic/LSB-Core-generic/iniscrptact.html
+	pgrep -f $DESC > $PIDFILE || true
+	if [ ! -s $PIDFILE ]; then
+	    echo " * $NAME is not running"
+	    exit 3
+	fi
+	status_of_proc -p $PIDFILE "$DAEMON" $NAME && exit 0 || exit $?
+	;;
+  *)
+	N=/etc/init.d/$NAME
+	echo "Usage: $N {start|stop|restart|force-reload|status}" >&2
+	exit 1
+	;;
+esac
+
+exit 0

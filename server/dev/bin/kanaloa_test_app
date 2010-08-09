@@ -36,10 +36,10 @@ done
 [[ $PORTNUM != "" ]] || die
 
 # Set up the HOME environment variable, which erl expects
+export HOME=/tmp/
+
 # CHANGE THIS TO YOUR CODE DIRECTORY
 RUNDIR=/home/dev/code/kanaloa/server/kanaloa/
-export HOME=$RUNDIR
-
 cd $RUNDIR
 exec erl \
     -pa $RUNDIR/tbin/ \
