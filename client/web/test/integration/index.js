@@ -25,8 +25,8 @@ $(document).ready(function(){
 	    });
 	
 	asyncTest("basic message send and receive", 1, function() {
-		var message = "test message " + Date.UTC();
-
+		var message = "test message " + (new Date()).getTime();
+		
 		var connection = new KanaloaConnection(server);
 
 		connection.onDataReceived = function(data) {
