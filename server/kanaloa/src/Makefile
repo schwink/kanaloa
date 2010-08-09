@@ -18,8 +18,7 @@ edoc:
 		-eval "edoc:application($(APPLICATION), \".\", [$(DOC_OPTS)])" \
 		-s init stop
 
-test: $(EBIN_FILES)
-	mkdir -p $(TEST_DIR);
+test: $(EBIN_FILES) $(TBIN_FILES)
 	@../support/run_tests.escript $(EBIN_DIR) $(TBIN_DIR) | tee $(TEST_DIR)/test.log
 
 $(TEST_PLT):

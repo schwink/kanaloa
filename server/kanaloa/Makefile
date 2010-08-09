@@ -5,7 +5,7 @@ DEST_EBIN = $(DEST)/ebin
 DEST_INCLUDE = $(DEST)/include
 DEST_DOC=$(DESTDIR)/usr/share/doc/$(NAME)/$(VERSION)/html
 
-all: ebin/
+all: ebin/ tbin/
 	(cd src;$(MAKE) all)
 	(cd test;$(MAKE) all)
 
@@ -16,7 +16,9 @@ hipe: ebin/
 doc:
 	(cd src;$(MAKE) edoc)
 
-test: tbin/
+force:
+
+test: force
 	(cd src;$(MAKE) test)
 
 clean:
