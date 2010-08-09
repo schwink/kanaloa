@@ -1,30 +1,35 @@
 %% @author Stephen Schwink <kanaloa@schwink.net>
 %% @copyright 2010 Stephen Schwink.
 
-%% @doc Test kanaloa application. This is used by the client tests.
+%% @doc Callbacks for the test_app application.
 
--module(start_kanaloa).
+-module(test_app_app).
 -author('Stephen Schwink <kanaloa@schwink.net>').
--export([start/0]).
+
+-behaviour(application).
+-export([start/2, stop/1]).
 
 -define(CONNECTION_ORPHAN_TIMEOUT, 60000).
 
-%% @spec start() -> ok
-%% @doc Start the kanaloa mochiweb server.
-start() ->
-    MochiwebOptions = [{port, 8001}],
+%% @spec start(_Type, _StartArgs) -> {ok, pid()}
+%% @doc application start callback for test_app.
+start(_StartType, _StartArgs) ->
+    io:format("test_app_app:start/2 called\n", []),
+    {ok, Port} = application:get_env(test_app, port),
+    io:format("starting on port ~w\n", [Port]),
+    MochiwebOptions = [{port, Port}],
     
     HandlerFun = fun (Connection) ->
 			 handle_connection(Connection)
 		 end,
     KanaloaOptions = [{handler, HandlerFun}],
     
-    {ok, _Pid} = kanaloa:start_link(MochiwebOptions, KanaloaOptions),
-    
-    receive
-	exit -> % Apparently this function, passed to erl with "-s", isn't supposed to return.
-	    ok
-    end.
+    kanaloa:start_link(MochiwebOptions, KanaloaOptions).    
+
+%% @spec stop(_State) -> ok
+%% @doc application stop callback for test_app.
+stop(_State) ->
+    ok.
 
 %% @doc Control comes here when we want to receive the next message for a presumably healty connection.
 handle_connection(Connection) ->
