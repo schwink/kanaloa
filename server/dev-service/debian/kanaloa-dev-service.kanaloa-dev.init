@@ -24,6 +24,18 @@ start_erl () {
 	--pidfile $PIDFILE \
 	--chuid $USR \
 	--exec $DAEMON -- -daemon /tmp/ /var/log/$NAME/ "/usr/bin/kanaloa-test-app -n $DESC -p 8001"
+    
+    # Because start-stop-daemon's --pidfile argument doesn't seem to work for this application, grab the pid with pgrep.
+    sleep 1
+    pgrep -u $USR -f beam.*$DESC -n > $PIDFILE
+}
+
+stop_erl () {
+    start-stop-daemon --stop \
+	--pidfile $PIDFILE || true
+    
+    sleep 1
+    rm -f $PIDFILE
 }
 
 set -e
@@ -33,40 +45,34 @@ set -e
 case "$1" in
   start)
 	echo -n "Starting $DESC: "
-	pgrep -f $DESC > $PIDFILE || true
 	ulimit -n $ULIMIT_NOFILE || true
 	start_erl || true
-	sleep 2
 	echo "$NAME."
 	;;
+
   stop)
 	echo -n "Stopping $DESC: "
-	pgrep -f $DESC > $PIDFILE || true
-	start-stop-daemon --stop \
-	    --pidfile $PIDFILE || true
+	stop_erl || true
 	echo "$NAME."
 	;;
+
   restart|force-reload)
 	echo -n "Restarting $DESC: "
 	ulimit -n $ULIMIT_NOFILE || true
-	pgrep -f $DESC > $PIDFILE || true
-	start-stop-daemon --stop \
-	    --pidfile $PIDFILE || true
-	sleep 1
-	pgrep -f $DESC > $PIDFILE || true
+	stop_erl || true
 	start_erl || true
-	sleep 2
 	echo "$NAME."
 	;;
+
   status)
 	# http://refspecs.freestandards.org/LSB_3.1.0/LSB-Core-generic/LSB-Core-generic/iniscrptact.html
-	pgrep -f $DESC > $PIDFILE || true
 	if [ ! -s $PIDFILE ]; then
 	    echo " * $NAME is not running"
 	    exit 3
 	fi
 	status_of_proc -p $PIDFILE "$DAEMON" $NAME && exit 0 || exit $?
 	;;
+
   *)
 	N=/etc/init.d/$NAME
 	echo "Usage: $N {start|stop|restart|force-reload|status}" >&2
