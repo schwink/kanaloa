@@ -9,6 +9,11 @@ server {
 
 	access_log /var/log/nginx/kanaloa_access.log;
 
+	location /common/jquery/ {
+		alias /usr/share/javascript/jquery/;
+		autoindex on;
+	}
+
 	location /kanaloa/testsvc/ {
 		proxy_read_timeout 500;
 		proxy_buffering off;

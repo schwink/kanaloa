@@ -8,6 +8,6 @@ Homepage:
 
 Package: kanaloa-dev-service
 Architecture: any
-Depends: ${misc:Depends}, nginx, kanaloa, kanaloa-client-web
+Depends: ${misc:Depends}, libjs-jquery, nginx, kanaloa, kanaloa-client-web
 Suggests: 
 Description: Sets up a sample application, useful for testing kanaloa. The kanaloa integration tests depend on this service.
