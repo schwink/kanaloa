@@ -38,6 +38,19 @@ $(document).ready(function(){
 		
 		connection.send(message);
 	    });
+
+	asyncTest("server disconnect handling", 1, function() {
+		var connection = new KanaloaConnection(server);
+		
+		connection.onConnectionOpened = function() {
+		    connection.send("kill_owner");
+		};
+		
+		connection.onConnectionClosed = function() {
+		    ok( true, "onConnectionClosed callback received" );
+		    start();
+		};
+	    });
 	
 	module("Stress");
 	

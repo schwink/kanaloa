@@ -159,10 +159,6 @@ KanaloaConnection.prototype.connect = function() {
 		    }, connection.settings.incomingWait);
 	    }
 	}
-	else {
-	    // TODO: Test for this scenario
-	    connection._reportConnectionClosed();
-	}
     }
     
     var receiver = new _KanaloaHttpPost(this.server + "/" + this.settings.connectionSuffix,
@@ -317,7 +313,7 @@ _KanaloaHttpSendBatcher.prototype._sendPost = function() {
 	return;
     }
     
-    if (this._post && this._post.isActive()) {
+    if (this._post) {
 	// If the post is still working, wait for it to complete.
 	this._logDebug("A post is still active; waiting for it to complete.");
 	return;
@@ -332,7 +328,10 @@ _KanaloaHttpSendBatcher.prototype._sendPost = function() {
 	    for (var i = 0; i < post.sentCount; i++) {
 		batcher._outgoing.shift();
 	    }
+	    post.sentCount = 0;
 	}
+	
+	connection._post = null;
 
 	// Loop to pick up accumulated messages.
 	if (connection._bumpOutgoing(statusCode)) {
