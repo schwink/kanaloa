@@ -4,7 +4,7 @@ $(document).ready(function(){
 	
 	module("Basics");
 	
-	asyncTest("basic connect and disconnect", 4, function() {
+	asyncTest("basic connect and onConnectionOpened disconnect", 4, function() {
 		var connection = new KanaloaConnection(server);
 		
 		connection.onConnectionOpened = function() {
@@ -24,7 +24,7 @@ $(document).ready(function(){
 		connection.connect();
 	    });
 	
-	asyncTest("basic message send and receive", 1, function() {
+	asyncTest("basic message send and receive with onDataReceived disconnect", 1, function() {
 		var message = "test message " + (new Date()).getTime();
 		
 		var connection = new KanaloaConnection(server);
@@ -62,5 +62,4 @@ $(document).ready(function(){
 		    connection.send(s);
 		}
 	    });
-	
     });

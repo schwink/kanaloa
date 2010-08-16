@@ -128,24 +128,40 @@ KanaloaConnection.prototype.connect = function() {
     
     connection._logDebug("Using stream mode? " + connection.settings.isStreamMode);
     
-    function connectionOpened(receiverPost) {
+    function receiverOpened() {
 	connection._logDebug("Opened");
+	
+	var receiverPost = connection._receiver;
 	
 	// Now that we have the ConnectionId, we can begin transmitting outgoing posts.
 	var firstOpened = (connection.connectionId == null);
-	connection.connectionId = receiverPost.connectionId;
-	if (firstOpened) {
-	    connection._reportConnectionOpened();
+	if (receiverPost) {
+	    connection.connectionId = receiverPost.connectionId;
+	    if (firstOpened) {
+		connection._reportConnectionOpened();
+		connection.send();
+	    }
 	}
-	connection.send();
     }
-
-    function connectionClosed(receiverPost, statusCode) {
+    
+    function receiverClosed(statusCode) {
 	connection._logDebug("Closed with status: " + statusCode);
+	
+	var receiverPost = connection._receiver;
 	
 	if (connection._bumpIncoming(statusCode)) {
 	    connection._logDebug("Waiting " + connection.settings.incomingWait + " ms before reconnect.");
-	    receiverPost.reconnectTimeout = setTimeout(function() { connection.connect(); }, connection.settings.incomingWait);
+	    
+	    if (receiverPost) {
+		receiverPost.reconnectTimeout = setTimeout(function() {
+			connection._receiver = null;
+			connection.connect();
+		    }, connection.settings.incomingWait);
+	    }
+	}
+	else {
+	    // TODO: Test for this scenario
+	    connection._reportConnectionClosed();
 	}
     }
     
@@ -153,9 +169,9 @@ KanaloaConnection.prototype.connect = function() {
 					this.connectionId,
 					this.settings.contentType,
 					this.settings.isStreamMode,
-					function() { connectionOpened(this); },
+					function() { receiverOpened(); },
 					function(data) { connection._reportDataReceived(data); },
-					function(httpStatusCode) { connectionClosed(this, httpStatusCode); },
+					function(httpStatusCode) { receiverClosed(httpStatusCode); },
 					function(message) { connection._logDebug(message); }
 					);
     this._receiver = receiver;
@@ -321,7 +337,9 @@ _KanaloaHttpSendBatcher.prototype._sendPost = function() {
 	// Loop to pick up accumulated messages.
 	if (connection._bumpOutgoing(statusCode)) {
 	    connection._logDebug("Waiting " + connection.settings.outgoingWait + " ms before reconnect.");
-	    post.reconnectTimeout = setTimeout(function() { batcher._sendPost(); }, connection.settings.outgoingWait);
+	    post.reconnectTimeout = setTimeout(function() {
+		    batcher._sendPost();
+		}, connection.settings.outgoingWait);
 	}
     }
     
@@ -425,14 +443,30 @@ _KanaloaHttpPost.prototype.connect = function() {
 	var readyState = request.readyState;
 	connection._logDebug("State changed to " + readyStates[request.readyState]);
 	
-	//connection._logDebug("responseText is \"" + request.responseText + "\"");
+	// How much of the request has completed?
+	var statusStatusKnown = (connection._isStreamMode && readyState >= READYSTATE_HEADERSRECEIVED) || readyState == READYSTATE_DONE;
+	var statusReceivedHeaders = (connection._isStreamMode && readyState == READYSTATE_HEADERSRECEIVED) || (!connection._isStreamMode && readyState == READYSTATE_DONE);
+	var statusReceivedBody = (connection._isStreamMode && readyState == READYSTATE_LOADING) || readyState == READYSTATE_DONE;
+	var statusClosed = readyState == READYSTATE_DONE;
 	
-	if ((connection._isStreamMode && readyState == READYSTATE_HEADERSRECEIVED) ||
-	    (!connection._isStreamMode && readyState == READYSTATE_DONE)) {
-	    var headers = request.getAllResponseHeaders();
-	    connection._logDebug("AllResponseHeaders is \"" + headers + "\"");
-	    
-	    var newConnectionId = request.getResponseHeader("ConnectionId");
+	// Read the request before any callbacks, in case the request is aborted and its properties are unset.
+	var requestStatus;
+	if (statusStatusKnown) {
+	    requestStatus = request.status;
+	}
+	var headers = {};
+	if (statusReceivedHeaders) {
+	    headers["ConnectionId"] = request.getResponseHeader("ConnectionId");
+	}
+	var responseText = "";
+	if (statusReceivedBody) {
+	    responseText = request.responseText;
+	}
+	
+	// Go ahead and act on the data that was gathered.
+	
+	if (statusReceivedHeaders) {
+	    var newConnectionId = headers["ConnectionId"];
 	    if (newConnectionId) {
 		connection._logDebug("Set new ConnectionId \"" + newConnectionId + "\"");
 		connection.connectionId = newConnectionId;
@@ -440,29 +474,20 @@ _KanaloaHttpPost.prototype.connect = function() {
 	    
 	    connection._logDebug("status is \"" + request.status + "\"");
 	    
-	    if (request.status == 200) {
+	    if (requestStatus == 200) {
 		connection._reportOpen();
 	    }
 	}
 	
-	if ((connection._isStreamMode && readyState == READYSTATE_LOADING) ||
-	    readyState == READYSTATE_DONE) {
-	    var allData = request.responseText;
-	    var data = allData.substring(request.lenReceived);
+	if (statusReceivedBody) {
+	    var data = responseText.substring(request.lenReceived);
+	    request.lenReceived = responseText.length;
+	    
 	    data = stringTrim(data);
-	    request.lenReceived = allData.length;
 	    if (data.length > 0) {
 		connection._logDebug("Received additional responseText \"" + data + "\"");
 
-		var responses = [];
-		try {
-		    // The response should always be a JSON array.
-		    responses = JSON.parse(data);
-		}
-		catch (ex) {
-		    connection._logDebug("Error parsing responseText \"" + data + "\"");
-		}
-		
+		var responses = JSON.parse(data);
 		for (var i = 0; i < responses.length; i++) {
 		    var response = responses[i];
 		    connection._reportChunk(response);
@@ -470,10 +495,10 @@ _KanaloaHttpPost.prototype.connect = function() {
 	    }
 	}
 	
-	if (readyState == READYSTATE_DONE) {
-	    connection._reportClose(request.status);
+	if (statusClosed) {
+	    connection._reportClose(requestStatus);
 	}
-    }
+    };
     
     if (this.connectionId) {
 	connection._logDebug("Setting ConnectionId header to \"" + this.connectionId + "\"");
