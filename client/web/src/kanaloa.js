@@ -331,7 +331,7 @@ _KanaloaHttpSendBatcher.prototype._sendPost = function() {
 	    post.sentCount = 0;
 	}
 	
-	connection._post = null;
+	batcher._post = null;
 
 	// Loop to pick up accumulated messages.
 	if (connection._bumpOutgoing(statusCode)) {

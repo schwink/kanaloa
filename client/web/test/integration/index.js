@@ -39,6 +39,30 @@ $(document).ready(function(){
 		connection.send(message);
 	    });
 
+	asyncTest("chained message send and receive (onMessageReceived send)", 1, function() {
+		function newMessage() {
+		    return "test message " + (new Date()).getTime();
+		}
+		
+		var connection = new KanaloaConnection(server);
+		var counter = 0;
+		
+		connection.onDataReceived = function(data) {
+		    counter++;
+		    
+		    if (counter == 1) {
+			connection.send(newMessage());
+		    }
+		    else {
+			connection.disconnect();
+			equals(2, counter, "received both messages");
+			start();
+		    }
+		};
+		
+		connection.send(newMessage());
+	    });
+
 	asyncTest("server disconnect handling", 1, function() {
 		var connection = new KanaloaConnection(server);
 		

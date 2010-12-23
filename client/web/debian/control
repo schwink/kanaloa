@@ -2,9 +2,9 @@ Source: kanaloa-client-web
 Section: web
 Priority: extra
 Maintainer: Steve <steve@schwink.net>
-Build-Depends: debhelper (>= 7), devscripts
+Build-Depends: debhelper (>= 7), devscripts, jsdoc-toolkit, yuicompressor
 Standards-Version: 3.8.1
-Homepage:
+Homepage: http://schwink.net/kanaloa
 
 Package: kanaloa-client-web
 Architecture: any

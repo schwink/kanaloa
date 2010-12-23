@@ -17,14 +17,14 @@ ensure_started(App) ->
     end.
 
 %% @spec start() -> ok
-%% @doc Start the thruster_mochiweb server.
+%% @doc Start the server.
 start() ->
     io:format("test_app:start/0 called\n", []),
     ensure_started(crypto),
     application:start(test_app).
 
 %% @spec stop() -> ok
-%% @doc Stop the thruster_mochiweb server.
+%% @doc Stop the server.
 stop() ->
     Res = application:stop(test_app),
     application:stop(crypto),
