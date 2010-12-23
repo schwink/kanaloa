@@ -39,11 +39,7 @@ $(document).ready(function(){
 		connection.send(message);
 	    });
 
-	asyncTest("chained message send and receive (onMessageReceived send)", 1, function() {
-		function newMessage() {
-		    return "test message " + (new Date()).getTime();
-		}
-		
+	asyncTest("chained message send and receive (onMessageReceived send)", 3, function() {
 		var connection = new KanaloaConnection(server);
 		var counter = 0;
 		
@@ -51,16 +47,18 @@ $(document).ready(function(){
 		    counter++;
 		    
 		    if (counter == 1) {
-			connection.send(newMessage());
+			equals("first", data.message, "received first message");
+			connection.send("second");
 		    }
 		    else {
 			connection.disconnect();
+			equals("second", data.message, "received second message");
 			equals(2, counter, "received both messages");
 			start();
 		    }
 		};
 		
-		connection.send(newMessage());
+		connection.send("first");
 	    });
 
 	asyncTest("server disconnect handling", 1, function() {
