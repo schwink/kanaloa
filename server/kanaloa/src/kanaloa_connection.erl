@@ -19,22 +19,29 @@ open(Owner) when is_pid(Owner) ->
     link(Owner),
     loop(Owner, Settings#kanaloa_settings.batch_count).
 
-%% @spec send(Data::json_term()) -> (ok | timeout)
+%% @spec send(Data::json_term()) -> (ok | timeout | too_big)
 %% @doc Sends a message to the client.
 send(Message) ->
     MessageJson = mochijson2:encode(Message),
     send_json(MessageJson).
 
-%% @spec send_json(Data::iolist()) -> (ok | timeout)
+%% @spec send_json(Data::iolist()) -> (ok | timeout | too_big)
 %% @doc Sends a message to the client that has already been encoded into JSON with mochijson2:encode/1.
+%% The length of the fully JSON-encoded message is limited to 512 bytes.
 send_json(Message) ->
-    Self ! {send, Message},
-    
-    receive
-	send_queued ->
-	    ok
-    after Settings#kanaloa_settings.connection_message_timeout ->
-	    timeout
+    Size = iolist_size(Message), % Note multi-byte char.
+    case Size > 512 of
+	true ->
+	    too_big;
+	false ->
+	    Self ! {send, Message},
+	    
+	    receive
+		send_queued ->
+		    ok
+	    after Settings#kanaloa_settings.connection_message_timeout ->
+		    timeout
+	    end
     end.
 
 %% @spec close() -> ok
@@ -110,8 +117,16 @@ loop(Owner, Count) ->
 %% @doc Loops to accumulate messages, for one timeout period.
 loop_accumulate(Owner, Messages, Timeout) when is_list(Messages) andalso is_integer(Timeout)->
     Now = now_ms(),
+    Size = iolist_size(Messages),
+    io:format("The size of the batch is ~w\n", [Size]),
     if
-	Timeout < Now ->  % Check batch timeout
+	Timeout < Now ->  % Batch timeout
+	    {ok, Messages};
+
+	% Observing problems with large chunks being split across multiple onReadyStateChanged callbacks, which makes parsing on the client more difficult.
+	% So, limit the batch size. Note that the size of each message is limited by send_json.
+        Size > 512 ->
+	    io:format("Batch size exceeds limit\n", []),
 	    {ok, Messages};
 	
 	true ->

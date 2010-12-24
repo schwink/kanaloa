@@ -97,4 +97,32 @@ $(document).ready(function(){
 		    connection.send(s);
 		}
 	    });
+
+	asyncTest("message series with large total size (greater than typical chunk size)", 5, function() {
+		var messages = [
+				"14eb8a40-0f17-11e0-ac64-0800200c9a66 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet",
+				"20334410-0f17-11e0-ac64-0800200c9a66 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet",
+				"2c1b3580-0f17-11e0-ac64-0800200c9a66 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet",
+				"3724d4e0-0f17-11e0-ac64-0800200c9a66 Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet"
+				];
+		var receivedCount = 0;
+		
+		var connection = new KanaloaConnection(server);
+		
+		connection.onDataReceived = function(data) {
+		    var expectedMessage = messages[receivedCount];
+		    receivedCount++;
+		    equals(expectedMessage, data.message, "received expected message in its entirety.");
+		    
+		    if (receivedCount == messages.length) {
+			connection.disconnect();
+			ok(true, "received all messages");
+			start();
+		    }
+		}
+		
+		for (var i = 0; i < messages.length; i++) {
+		    connection.send(messages[i]);
+		}
+	    });
     });
