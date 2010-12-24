@@ -85,7 +85,8 @@ loop(Owner, Count) ->
     
     % Accumulate messages for the batch interval.
     Timeout = now_ms() + Settings#kanaloa_settings.batch_interval,
-    {Status, Messages} = loop_accumulate(Owner, [], Timeout),
+    SizeCutoff = Settings#kanaloa_settings.batch_size_cutoff,
+    {Status, Messages} = loop_accumulate(Owner, [], Timeout, SizeCutoff),
     
     % Send the batch.
     case catch send_batch(Messages) of
@@ -113,9 +114,9 @@ loop(Owner, Count) ->
 	    exit(Status)
     end.
 
-%% @spec loop_accumulate(BatchSettings::batch_settings(), Messages::list(), Timeout::integer()) -> {Status::ok | owner_exit, Messages::list()}
+%% @spec loop_accumulate(BatchSettings::batch_settings(), Messages::list(), Timeout::integer(), SizeCutoff::integer()) -> {Status::ok | owner_exit, Messages::list()}
 %% @doc Loops to accumulate messages, for one timeout period.
-loop_accumulate(Owner, Messages, Timeout) when is_list(Messages) andalso is_integer(Timeout)->
+loop_accumulate(Owner, Messages, Timeout, SizeCutoff) when is_list(Messages) andalso is_integer(Timeout) andalso is_integer(SizeCutoff) ->
     Now = now_ms(),
     Size = iolist_size(Messages),
     io:format("The size of the batch is ~w\n", [Size]),
@@ -125,7 +126,7 @@ loop_accumulate(Owner, Messages, Timeout) when is_list(Messages) andalso is_inte
 
 	% Observing problems with large chunks being split across multiple onReadyStateChanged callbacks, which makes parsing on the client more difficult.
 	% So, limit the batch size. Note that the size of each message is limited by send_json.
-        Size > 512 ->
+        Size > SizeCutoff ->
 	    io:format("Batch size exceeds limit\n", []),
 	    {ok, Messages};
 	
@@ -133,7 +134,7 @@ loop_accumulate(Owner, Messages, Timeout) when is_list(Messages) andalso is_inte
 	    receive
 		{send, Message} ->
 		    Owner ! send_queued,
-		    loop_accumulate(Owner, [Message | Messages], Timeout);
+		    loop_accumulate(Owner, [Message | Messages], Timeout, SizeCutoff);
 		
 		{'EXIT', Owner, _Reason} ->
 		    {owner_exit, Messages};
@@ -142,7 +143,7 @@ loop_accumulate(Owner, Messages, Timeout) when is_list(Messages) andalso is_inte
 		    {close, Messages}
 	    
 	    after Settings#kanaloa_settings.batch_check_interval ->
-		    loop_accumulate(Owner, Messages, Timeout)
+		    loop_accumulate(Owner, Messages, Timeout, SizeCutoff)
 	    end
     end.
 

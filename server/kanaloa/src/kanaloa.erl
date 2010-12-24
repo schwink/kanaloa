@@ -37,6 +37,12 @@ ensure_started(App) ->
 %% ===batch_count===
 %% An integer() representing the number of batches to send before forcing the client to make a fresh connection.
 %% This is necessary to enforce memory leak protection on the client (so they don't try to hold a big unused buffer in memory). Defaults to 32.
+%% ===message_size===
+%% An integer() representing the maximum message size in bytes. Defaults to 512.
+%% ===batch_size===
+%% A integer() representing the maximum size in bytes of a batch of messages.
+%% Values above the default value of 1024 have been shown to cause batches to be split across multiple XHR onReadyStateChanged events when streaming, causing
+%% parse errors on the client. Must be greater than message_size.
 %%
 %% batch_interval * batch_count = maximum duration of an HTTP connection between client and server.
 %% (Note that HTTP keep-alive should make the TCP connection duration much longer.)
@@ -83,21 +89,31 @@ get_kanaloa_settings(Options) ->
 		     BC when is_integer(BC) andalso (BC > 16) ->
 			 BC
 		 end,
-
     ConnectionTimeout = case proplists:get_value(connection_message_timeout, Options, 100) of
 			    CT when is_integer(CT) ->
 				CT
 			end,
+    MessageSize = case proplists:get_value(message_size, Options, 512) of
+		      MS when is_integer(MS) ->
+			  MS
+		  end,
+    BatchSize = case proplists:get_value(batch_size, Options, 1024) of
+		    BS when is_integer(BS) andalso BS > MS ->
+			BS
+		end,
+    BatchSizeCutoff = BatchSize - MessageSize,
     
     #kanaloa_settings{
-			  handler = HandlerFun,
-			  http_content_type = ContentType,
-			  parse_jsonrpc = ParseJsonRpc,
-			  batch_interval = BatchInterval,
-			  batch_check_interval = BatchCheckInterval,
-			  batch_count = BatchCount,
-			  connection_message_timeout = ConnectionTimeout
-			 }.
+				    handler = HandlerFun,
+				    http_content_type = ContentType,
+				    parse_jsonrpc = ParseJsonRpc,
+				    batch_interval = BatchInterval,
+				    batch_check_interval = BatchCheckInterval,
+				    batch_count = BatchCount,
+				    connection_message_timeout = ConnectionTimeout,
+				    message_size = MessageSize,
+				    batch_size_cutoff = BatchSizeCutoff
+				   }.
 
 %% @doc Replaces the specified entry in a proplist.
 replace_option(Key, Options, Value) ->
