@@ -6,6 +6,10 @@
    @author kanaloa@schwink.net (Stephen Schwink)
 */
 
+function stringTrim(str) {
+    return str.replace(/^\s*/, "").replace(/\s*$/, "");
+};
+
 (function() {
 
 var /*const*/ READYSTATE_UNSENT = 0;
@@ -517,12 +521,6 @@ _KanaloaHttpPost.prototype.connect = function() {
 	if (statusReceivedBody) {
 	    var data = responseText.substring(request.lenReceived);
 	    
-	    // Remove leading whitespace
-	    while (data.substring(0, 1) == "\n") {
-		data = data.substring(1);
-		request.lenReceived++;
-	    }
-	    
 	    if (data.length > 0) {
 		connection._logDebug("Received additional responseText \"" + data + "\"");
 		
@@ -530,6 +528,7 @@ _KanaloaHttpPost.prototype.connect = function() {
 		for (var ci = 0; ci < chunks.length - 1; ci++) {
 		    var chunk = chunks[ci];
 		    request.lenReceived += chunk.length;
+		    chunk = stringTrim(chunk);
 		    connection._logDebug("Received chunk \"" + chunk + "\"");
 		    
 		    var responses = JSON.parse(chunk);
