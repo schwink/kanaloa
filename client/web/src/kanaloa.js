@@ -214,6 +214,46 @@ KanaloaConnection.prototype.send = function(data) {
     this._sendBatcher.send(dataJson);
 };
 
+/** @private Attached to public type for testing purposes. */
+KanaloaConnection.prototype._splitChunk = function(data) {
+    // Sometimes chunks are concatenated into one onreadystatechange event.
+    // Splitting is complicated by escaped JSON-encoded substrings.
+    // Iterate through the response text to find the unescaped "]" that denotes the end of a chunk.
+    // Note that the last segment may be incomplete.
+    
+    var chunks = [];
+    var startPos = 0; // The position that the current chunk starts at.
+    var pos = 0; // The poosition that you have validated to so far.
+    var insideString = "";
+    for (var i = 0; i < data.length; i++) {
+	var c = data.charAt(i);
+	if (c == "\\") {
+	    // Skip the next character.
+	    i++;
+	}
+	else if (insideString == "" && (c == '"' || c == "'")) {
+	    // Going into a string
+	    insideString = c;
+	}
+	else if (c == insideString) {
+	    // Coming out of a string
+	    insideString = "";
+	}
+	else if (!insideString && c == "]") {
+	    // Split off the chunk.
+	    var chunk = data.substring(startPos, i + 1);
+	    chunks.push(chunk);
+	    startPos = i + 1;
+	}
+    }
+    
+    // The last item in the return array contains the remainder of the split.
+    // It should be empty if the split finished cleanly (ended with a valid "]").
+    chunks.push(data.substring(startPos));
+    
+    return chunks;
+};
+
 var /*const*/ KANALOA_WAIT_INCOMING_BASE = 10;
 var /*const*/ KANALOA_WAIT_OUTGOING_BASE = 10;
 

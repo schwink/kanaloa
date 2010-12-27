@@ -1,7 +1,65 @@
 $(document).ready(function(){
 	
 	var server = "/kanaloa/testsvc/";
-
+	
+	module("Chunk splitter unit tests");
+	
+	test("empty chunk", function() {
+		var input = "[]";
+		var output = ["[]", ""];
+		
+		var chunks = KanaloaConnection.prototype._splitChunk(input);
+		same(chunks, output);
+	    });
+	
+	test("double quoted chunk", function() {
+		var input = '["]"]';
+		var output = ['["]"]', ""];
+		
+		var chunks = KanaloaConnection.prototype._splitChunk(input);
+		same(chunks, output);
+	    });
+	
+	test("single quoted chunk", function() {
+		var input = "[']']";
+		var output = ["[']']", ""];
+		
+		var chunks = KanaloaConnection.prototype._splitChunk(input);
+		same(chunks, output);
+	    });
+	
+	test("nested quoted chunk", function() {
+		var input = "['\"]\"']";
+		var output = ["['\"]\"']", ""];
+		
+		var chunks = KanaloaConnection.prototype._splitChunk(input);
+		same(chunks, output);
+	    });
+	
+	test("incomplete chunk", function() {
+		var input = '["Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
+		var output = ['["Lorem ipsum dolor sit amet, consectetur adipiscing elit.'];
+		
+		var chunks = KanaloaConnection.prototype._splitChunk(input);
+		same(chunks, output);
+	    });
+	
+	test("two chunks", function() {
+		var input = '["Lorem ipsum dolor sit amet, consectetur adipiscing elit."]["foo bar"]';
+		var output = ['["Lorem ipsum dolor sit amet, consectetur adipiscing elit."]', '["foo bar"]', ""];
+		
+		var chunks = KanaloaConnection.prototype._splitChunk(input);
+		same(chunks, output);
+	    });
+	
+	test("one plus incomplete chunk", function() {
+		var input = '["Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
+		var output = ['["Lorem ipsum dolor sit amet, consectetur adipiscing elit.'];
+		
+		var chunks = KanaloaConnection.prototype._splitChunk(input);
+		same(chunks, output);
+	    });
+	
 	module("Basics");
 	
 	asyncTest("basic connect and onConnectionOpened disconnect", 4, function() {
@@ -73,7 +131,7 @@ $(document).ready(function(){
 		    start();
 		};
 	    });
-
+	
 	module("Stress");
 	
 	var repetitions = 20;
