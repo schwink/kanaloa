@@ -84,6 +84,12 @@ receive_normal(Connection) ->
 	    Connection:log("Client instructs the owner to exit.", []),
 	    kill_owner;
 	
+	{chunk, <<"flood32">>} ->
+	    % This will cause the owner to send a bunch of messages.
+	    % Used by the integration tests.
+	    Connection:log("Client says to send a flood of 32 messages.", []),
+	    flood(Connection, 32, 0);
+	
 	{chunk, Data} ->
 	    Connection:log("Owner got a chunk from the client: '~w'", [Data]),
 	    
@@ -97,3 +103,18 @@ receive_normal(Connection) ->
 	    handle_connection(Connection)
     
     end.
+
+flood(_Connection, N, SN) when N == SN ->
+    done;
+flood(Connection, N, SN) when is_integer(N) andalso is_integer(SN) ->
+    Now = kanaloa_utils:now_utc_ms(),
+    Filler = <<"">>,
+    JsonObj = {struct, [
+			{time, Now},
+			{count, SN},
+			{filler, Filler}
+		       ]},
+    
+    Connection:send(JsonObj),
+    
+    flood(Connection, N, SN + 1).

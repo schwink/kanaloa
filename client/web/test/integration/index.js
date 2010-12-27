@@ -1,7 +1,7 @@
 $(document).ready(function(){
 	
 	var server = "/kanaloa/testsvc/";
-	
+
 	module("Basics");
 	
 	asyncTest("basic connect and onConnectionOpened disconnect", 4, function() {
@@ -73,7 +73,7 @@ $(document).ready(function(){
 		    start();
 		};
 	    });
-	
+
 	module("Stress");
 	
 	var repetitions = 20;
@@ -124,5 +124,24 @@ $(document).ready(function(){
 		for (var i = 0; i < messages.length; i++) {
 		    connection.send(messages[i]);
 		}
+	    });
+	
+	asyncTest("message flood 32", 33, function() {
+		var connection = new KanaloaConnection(server);
+		
+		var counter = 0;
+		
+		connection.onDataReceived = function(data) {
+		    equals(counter, data.count, "received message " + counter + " in order");
+		    counter++;
+		    
+		    if (counter == 32) {
+			connection.disconnect();
+			ok(true, "received all messages");
+			start();
+		    }
+		}
+		
+		connection.send("flood32");
 	    });
     });
