@@ -20,10 +20,6 @@ readyStates[READYSTATE_HEADERSRECEIVED] = "HEADERS_RECEIVED";
 readyStates[READYSTATE_LOADING] = "LOADING";
 readyStates[READYSTATE_DONE] = "DONE";
 
-function stringTrim(str) {
-    return str.replace(/^\s*/, "").replace(/\s*$/, "");
-};
-
 /**
  * Top-level user-facing abstraction of all Kanaloa client functionality.
  * @param {string} server The url of the Kanaloa service to connect to.
@@ -520,16 +516,27 @@ _KanaloaHttpPost.prototype.connect = function() {
 	
 	if (statusReceivedBody) {
 	    var data = responseText.substring(request.lenReceived);
-	    request.lenReceived = responseText.length;
 	    
-	    data = stringTrim(data);
+	    // Remove leading whitespace
+	    while (data.substring(0, 1) == "\n") {
+		data = data.substring(1);
+		request.lenReceived++;
+	    }
+	    
 	    if (data.length > 0) {
 		connection._logDebug("Received additional responseText \"" + data + "\"");
-
-		var responses = JSON.parse(data);
-		for (var i = 0; i < responses.length; i++) {
-		    var response = responses[i];
-		    connection._reportChunk(response);
+		
+		var chunks = KanaloaConnection.prototype._splitChunk(data);
+		for (var ci = 0; ci < chunks.length - 1; ci++) {
+		    var chunk = chunks[ci];
+		    request.lenReceived += chunk.length;
+		    connection._logDebug("Received chunk \"" + chunk + "\"");
+		    
+		    var responses = JSON.parse(chunk);
+		    for (var i = 0; i < responses.length; i++) {
+			var response = responses[i];
+			connection._reportChunk(response);
+		    }
 		}
 	    }
 	}
