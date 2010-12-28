@@ -225,6 +225,7 @@ KanaloaConnection.prototype._splitChunk = function(data) {
     var startPos = 0; // The position that the current chunk starts at.
     var pos = 0; // The poosition that you have validated to so far.
     var insideString = "";
+    var nestedArrayDepth = 0;
     for (var i = 0; i < data.length; i++) {
 	var c = data.charAt(i);
 	if (c == "\\") {
@@ -239,11 +240,20 @@ KanaloaConnection.prototype._splitChunk = function(data) {
 	    // Coming out of a string
 	    insideString = "";
 	}
-	else if (!insideString && c == "]") {
-	    // Split off the chunk.
-	    var chunk = data.substring(startPos, i + 1);
-	    chunks.push(chunk);
-	    startPos = i + 1;
+	else if (!insideString) {
+	    if (c == "[") {
+		nestedArrayDepth++;
+	    }
+	    else if (c == "]") {
+		nestedArrayDepth--;
+		if (nestedArrayDepth == 0) {
+		    // Split off the chunk.
+		    nestedArrayDepth = 0;
+		    var chunk = data.substring(startPos, i + 1);
+		    chunks.push(chunk);
+		    startPos = i + 1;
+		}
+	    }
 	}
     }
     

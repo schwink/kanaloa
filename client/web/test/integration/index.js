@@ -4,12 +4,23 @@ $(document).ready(function(){
 	
 	module("Chunk splitter unit tests");
 	
+	function verifyChunksParse(chunks) {
+	    for (var i = 0; i < chunks.length - 1; i++) {
+		var chunk = chunks[i];
+		// Will throw if invalid JSON.
+		JSON.parse(chunk);
+	    }
+	    
+	    ok(true, "All complete chunks parse.");
+	}
+	
 	test("empty chunk", function() {
 		var input = "[]";
 		var output = ["[]", ""];
 		
 		var chunks = KanaloaConnection.prototype._splitChunk(input);
 		same(chunks, output);
+		verifyChunksParse(chunks);
 	    });
 	
 	test("double quoted chunk", function() {
@@ -18,22 +29,25 @@ $(document).ready(function(){
 		
 		var chunks = KanaloaConnection.prototype._splitChunk(input);
 		same(chunks, output);
-	    });
-	
-	test("single quoted chunk", function() {
-		var input = "[']']";
-		var output = ["[']']", ""];
-		
-		var chunks = KanaloaConnection.prototype._splitChunk(input);
-		same(chunks, output);
+		verifyChunksParse(chunks);
 	    });
 	
 	test("nested quoted chunk", function() {
-		var input = "['\"]\"']";
-		var output = ["['\"]\"']", ""];
+		var input = '["\']\'"]';
+		var output = ['["\']\'"]', ""];
 		
 		var chunks = KanaloaConnection.prototype._splitChunk(input);
 		same(chunks, output);
+		verifyChunksParse(chunks);
+	    });
+	
+	test("nested arrays", function() {
+		var input = '["[]", [[], "]"], ["foo", "bar"], []]["baz"]';
+		var output = ['["[]", [[], "]"], ["foo", "bar"], []]',  '["baz"]', ""];
+		
+		var chunks = KanaloaConnection.prototype._splitChunk(input);
+		same(chunks, output);
+		verifyChunksParse(chunks);
 	    });
 	
 	test("incomplete chunk", function() {
@@ -42,6 +56,7 @@ $(document).ready(function(){
 		
 		var chunks = KanaloaConnection.prototype._splitChunk(input);
 		same(chunks, output);
+		verifyChunksParse(chunks);
 	    });
 	
 	test("two chunks", function() {
@@ -50,6 +65,7 @@ $(document).ready(function(){
 		
 		var chunks = KanaloaConnection.prototype._splitChunk(input);
 		same(chunks, output);
+		verifyChunksParse(chunks);
 	    });
 	
 	test("one plus incomplete chunk", function() {
@@ -58,6 +74,7 @@ $(document).ready(function(){
 		
 		var chunks = KanaloaConnection.prototype._splitChunk(input);
 		same(chunks, output);
+		verifyChunksParse(chunks);
 	    });
 	
 	module("Basics");
