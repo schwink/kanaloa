@@ -44,6 +44,6 @@ cd $RUNDIR
 exec erl \
     -pa $RUNDIR/tbin/ \
     -sname $SNAME \
-    -boot start_sasl -s reloader -s test_app \
-    -test_app port $PORTNUM \
+    -boot start_sasl -s reloader -s kanaloa_test_app \
+    -kanaloa_test_app port $PORTNUM \
     +K true +P 100000 $ARGS

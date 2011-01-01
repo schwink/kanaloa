@@ -1,9 +1,9 @@
 %% @author Stephen Schwink <kanaloa@schwink.net>
 %% @copyright 2010 Stephen Schwink.
 
-%% @doc Callbacks for the test_app application.
+%% @doc Callbacks for the kanaloa_test_app application.
 
--module(test_app_app).
+-module(kanaloa_test_app_app).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
 -behaviour(application).
@@ -12,10 +12,10 @@
 -define(CONNECTION_ORPHAN_TIMEOUT, 60000).
 
 %% @spec start(_Type, _StartArgs) -> {ok, pid()}
-%% @doc application start callback for test_app.
+%% @doc application start callback for kanaloa_test_app.
 start(_StartType, _StartArgs) ->
-    io:format("test_app_app:start/2 called\n", []),
-    {ok, Port} = application:get_env(test_app, port),
+    io:format("kanaloa_test_app_app:start/2 called\n", []),
+    {ok, Port} = application:get_env(kanaloa_test_app, port),
     io:format("starting on port ~w\n", [Port]),
     MochiwebOptions = [{port, Port}],
     
@@ -27,7 +27,7 @@ start(_StartType, _StartArgs) ->
     kanaloa:start_link(MochiwebOptions, KanaloaOptions).    
 
 %% @spec stop(_State) -> ok
-%% @doc application stop callback for test_app.
+%% @doc application stop callback for kanaloa_test_app.
 stop(_State) ->
     ok.
 
@@ -91,7 +91,7 @@ receive_normal(Connection) ->
 	    flood(Connection, 32, 0);
 	
 	{chunk, Data} ->
-	    Connection:log("Owner got a chunk from the client: '~w'", [Data]),
+	    Connection:log("Owner got a chunk from the client: '~s'", [iolist_to_binary(Data)]),
 	    
 	    Now = kanaloa_utils:now_utc_ms(),
 	    JsonObj = {struct, [

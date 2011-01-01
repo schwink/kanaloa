@@ -1,6 +1,6 @@
 include ../../kanaloa/support/include.mk
 
-APPLICATION=kanaloa
+APPLICATION=kanaloa_test_app
 DOC_OPTS={dir,\"../doc\"}
 TEST_PLT=$(TEST_DIR)/dialyzer_plt
 

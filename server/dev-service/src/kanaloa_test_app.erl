@@ -3,7 +3,7 @@
 
 %% @doc Starts the test kanaloa application. This is used by the client tests.
 
--module(test_app).
+-module(kanaloa_test_app).
 -author('Stephen Schwink <kanaloa@schwink.net>').
 
 -export([start/0, stop/0]).
@@ -19,13 +19,13 @@ ensure_started(App) ->
 %% @spec start() -> ok
 %% @doc Start the server.
 start() ->
-    io:format("test_app:start/0 called\n", []),
+    io:format("kanaloa_test_app:start/0 called\n", []),
     ensure_started(crypto),
-    application:start(test_app).
+    application:start(kanaloa_test_app).
 
 %% @spec stop() -> ok
 %% @doc Stop the server.
 stop() ->
-    Res = application:stop(test_app),
+    Res = application:stop(kanaloa_test_app),
     application:stop(crypto),
     Res.

@@ -1,9 +1,9 @@
-{application, test_app,
- [{description, "test_app"},
+{application, kanaloa_test_app,
+ [{description, "kanaloa_test_app"},
   {vsn, "0.01"},
   {modules, [
-    test_app,
-    test_app_app,
+    kanaloa_test_app,
+    kanaloa_test_app_app,
     kanaloa,
     kanaloa_connection,
     kanaloa_rpc,
@@ -14,7 +14,7 @@
     mochiweb_http
   ]},
   {registered, []},
-  {mod, {test_app_app, []}},
+  {mod, {kanaloa_test_app_app, []}},
   {env, [
     {port, 8001}
   ]},
