@@ -91,7 +91,7 @@ receive_normal(Connection) ->
 	    flood(Connection, 32, 0);
 	
 	{chunk, Data} ->
-	    Connection:log("Owner got a chunk from the client: '~s'", [iolist_to_binary(Data)]),
+	    Connection:log("Owner got a chunk from the client: '~s'", [iolist_to_binary([Data])]),
 	    
 	    Now = kanaloa_utils:now_utc_ms(),
 	    JsonObj = {struct, [
